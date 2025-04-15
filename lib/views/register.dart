@@ -94,7 +94,9 @@ class _RegisterPageState extends State<RegisterPage> {
 
                 await Future.delayed(Duration(seconds: 1));
 
-                Navigator.pop(context);
+                if (result == 'Registro exitoso') {
+                  Navigator.pop(context);
+                }
               },
               child: const Text('Registrarse'),
             ),

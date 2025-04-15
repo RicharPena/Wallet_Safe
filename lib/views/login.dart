@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:wallet_safe/models/cuenta.dart';
 import 'package:wallet_safe/views/register.dart';
 
-class LoginView extends StatelessWidget {
-  final TextEditingController userController = TextEditingController();
-  final TextEditingController passwordController = TextEditingController();
-
+class LoginView extends StatefulWidget {
   LoginView({super.key});
+
+  @override
+  State<LoginView> createState() => _LoginViewState();
+}
+
+class _LoginViewState extends State<LoginView> {
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
@@ -26,7 +32,7 @@ class LoginView extends StatelessWidget {
             ),
             const SizedBox(height: 60),
             TextField(
-              controller: userController,
+              controller: emailController,
               decoration: const InputDecoration(
                 labelText: 'Correo',
                 border: OutlineInputBorder(),
@@ -45,10 +51,13 @@ class LoginView extends StatelessWidget {
             ElevatedButton(
               onPressed: () {
                 // Aquí iría la lógica para iniciar sesión
-                final usuario = userController.text;
+                final correo = emailController.text;
                 final contrasena = passwordController.text;
 
-                print('Usuario: $usuario');
+                //NECESARIO A CORREGIR. SOLO ES VERIFICACIÓN
+                print(Cuenta.iniciarSesion(correo, contrasena));
+
+                print('Usuario: $correo');
                 print('Contraseña: $contrasena');
               },
               child: const Text('Iniciar Sesión'),

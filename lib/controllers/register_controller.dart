@@ -1,3 +1,5 @@
+import 'package:wallet_safe/models/cuenta.dart';
+
 class RegisterController {
   String validarRegistro({
     required String name,
@@ -21,6 +23,8 @@ class RegisterController {
     }
 
     // Aquí llamar a la capa de persistencia
+    Cuenta newAccount = Cuenta(name: name, email: email, password: password);
+    Cuenta.registrar(newAccount);
 
     return 'Registro exitoso';
   }

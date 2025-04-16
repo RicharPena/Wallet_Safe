@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:wallet_safe/models/cuenta.dart';
+import 'package:wallet_safe/views/profiles.dart';
 import 'package:wallet_safe/views/register.dart';
 
 class LoginView extends StatefulWidget {
@@ -54,8 +55,24 @@ class _LoginViewState extends State<LoginView> {
                 final correo = emailController.text;
                 final contrasena = passwordController.text;
 
-                //NECESARIO A CORREGIR. SOLO ES VERIFICACIÓN
-                print(Cuenta.iniciarSesion(correo, contrasena));
+                if (Cuenta.iniciarSesion(correo, contrasena)) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder:
+                          (context) =>
+                              ProfileViews(cuenta: Cuenta.cuentaActiva!),
+                    ),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Correo o contraseña incorrectos'),
+                      backgroundColor: Colors.redAccent,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
 
                 print('Usuario: $correo');
                 print('Contraseña: $contrasena');

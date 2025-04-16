@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:wallet_safe/models/cuenta.dart';
 import 'package:wallet_safe/models/perfil.dart';
+import 'package:wallet_safe/views/homePage.dart';
 
 class ProfileViews extends StatefulWidget {
   final Cuenta cuenta;
@@ -56,6 +57,10 @@ class _ProfileViewsState extends State<ProfileViews> {
   Widget _buildPerfilCard(Perfil perfil) {
     return GestureDetector(
       onTap: () {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => HomePage()),
+        );
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Entraste con el perfil: ${perfil.nombre}')),
         );
@@ -104,7 +109,7 @@ class _ProfileViewsState extends State<ProfileViews> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color.fromARGB(218, 120, 244, 98),
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text('Seleccionar perfil'),
         centerTitle: true,

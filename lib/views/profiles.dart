@@ -59,7 +59,7 @@ class _ProfileViewsState extends State<ProfileViews> {
       onTap: () {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => HomePage()),
+          MaterialPageRoute(builder: (context) => HomePage(perfil: perfil)),
         );
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Entraste con el perfil: ${perfil.nombre}')),

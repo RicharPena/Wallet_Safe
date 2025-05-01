@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:wallet_safe/models/cuenta.dart';
 import 'package:wallet_safe/models/perfil.dart';
 import 'package:wallet_safe/views/tabs/home_tab.dart';
 import 'package:wallet_safe/views/tabs/ingresos_tab.dart';
@@ -8,8 +9,10 @@ import 'package:wallet_safe/views/tabs/config_tab.dart';
 import 'package:wallet_safe/widgets/barra_inferior.dart';
 
 class HomePage extends StatelessWidget {
+  final Cuenta cuenta;
   final Perfil perfil;
-  HomePage({required this.perfil, super.key});
+
+  HomePage({required this.cuenta, required this.perfil, super.key});
   final _navigatorKeys = List.generate(5, (_) => GlobalKey<NavigatorState>());
 
   @override
@@ -17,7 +20,7 @@ class HomePage extends StatelessWidget {
     return PersistentBottomBarScaffold(
       items: [
         PersistentTabItem(
-          tab: HomeTab(perfil: perfil),
+          tab: HomeTab(cuenta: cuenta, perfil: perfil),
           icon: Icons.home,
           title: 'Inicio',
           navigatorkey: _navigatorKeys[0],

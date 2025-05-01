@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:wallet_safe/controllers/home_tab_titular_controller.dart';
 import 'package:wallet_safe/controllers/home_tab_oprofiles_cotroller.dart';
+import 'package:wallet_safe/models/cuenta.dart';
 import 'package:wallet_safe/models/perfil.dart';
 import 'package:wallet_safe/controllers/graphics_helper_controller.dart';
 
 class HomeTab extends StatefulWidget {
   final Perfil perfil;
-  const HomeTab({required this.perfil, super.key});
+  final Cuenta cuenta;
+
+  const HomeTab({required this.cuenta, required this.perfil, super.key});
 
   @override
   State<HomeTab> createState() => _HomeTabState();
@@ -19,11 +22,62 @@ class _HomeTabState extends State<HomeTab> {
 
   @override
   Widget build(BuildContext context) {
-    final titularSpots = TitularController.getLineSpots();
-    final perfilSpots = PerfilController.getLineSpots();
+    final isTitular = widget.perfil.nombre == "Titular";
+    final perfilesNormales =
+        widget.cuenta.perfiles.where((p) => p.nombre != "Titular").toList();
 
-    // Combinar todos los puntos para obtener límites correctos
-    final allSpots = [...titularSpots, ...perfilSpots];
+    final List<FlSpot> titularSpots =
+        isTitular ? TitularController.getLineSpots() : [];
+
+    // Otras líneas para perfiles normales
+    final otrasLineas =
+        isTitular
+            ? perfilesNormales.map((perfil) {
+              final spots = OProfilesController.getLineSpots(perfil.nombre);
+              return LineChartBarData(
+                spots: spots,
+                isCurved: true,
+                color: _colorForPerfil(widget.cuenta, perfil),
+                barWidth: 3,
+                isStrokeCapRound: true,
+                dotData: FlDotData(show: false),
+                belowBarData: BarAreaData(show: false),
+              );
+            }).toList()
+            : [
+              LineChartBarData(
+                spots: OProfilesController.getLineSpots(widget.perfil.nombre),
+                isCurved: true,
+                color: Colors.green,
+                barWidth: 3,
+                isStrokeCapRound: true,
+                dotData: FlDotData(show: false),
+                belowBarData: BarAreaData(show: false),
+              ),
+            ];
+
+    final titularLine =
+        isTitular
+            ? [
+              LineChartBarData(
+                spots: titularSpots,
+                isCurved: true,
+                color: Colors.blue,
+                barWidth: 3,
+                isStrokeCapRound: true,
+                dotData: FlDotData(show: false),
+                belowBarData: BarAreaData(show: false),
+              ),
+            ]
+            : [];
+
+    // Extraer todos los FlSpot para calcular los bounds del gráfico
+    final List<FlSpot> allSpots =
+        [
+          ...titularLine,
+          ...otrasLineas,
+        ].expand((line) => line.spots).cast<FlSpot>().toList();
+
     final bounds = GraphHelper.getMinMax(allSpots);
 
     return Scaffold(
@@ -44,7 +98,26 @@ class _HomeTabState extends State<HomeTab> {
                 ),
               ),
 
-              // 💰 Dinero actual
+              if (widget.perfil.nombre == "Titular")
+                Container(
+                  margin: const EdgeInsets.only(bottom: 16.0, top: 10),
+                  padding: const EdgeInsets.all(12.0),
+                  decoration: BoxDecoration(
+                    color: Colors.green[50],
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.greenAccent),
+                  ),
+                  child: const Text(
+                    'Bienvenido, aquí tienes un resumen de lo que está aconteciendo el día de hoy.',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontStyle: FontStyle.italic,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ),
+
+              // Dinero actual
               Text(
                 '\$${dineroActual.toStringAsFixed(2)}',
                 style: const TextStyle(
@@ -65,26 +138,7 @@ class _HomeTabState extends State<HomeTab> {
                     titlesData: FlTitlesData(show: false),
                     gridData: FlGridData(show: false),
                     borderData: FlBorderData(show: false),
-                    lineBarsData: [
-                      LineChartBarData(
-                        spots: titularSpots,
-                        isCurved: true,
-                        color: Colors.blue,
-                        barWidth: 3,
-                        isStrokeCapRound: true,
-                        dotData: FlDotData(show: false),
-                        belowBarData: BarAreaData(show: false),
-                      ),
-                      LineChartBarData(
-                        spots: perfilSpots,
-                        isCurved: true,
-                        color: Colors.green,
-                        barWidth: 3,
-                        isStrokeCapRound: true,
-                        dotData: FlDotData(show: false),
-                        belowBarData: BarAreaData(show: false),
-                      ),
-                    ],
+                    lineBarsData: [...titularLine, ...otrasLineas],
                   ),
                 ),
               ),
@@ -117,4 +171,11 @@ class _HomeTabState extends State<HomeTab> {
       ),
     );
   }
+}
+
+// Método auxiliar para dar un color único a cada perfil
+Color _colorForPerfil(Cuenta cuenta, Perfil perfil) {
+  final index = cuenta.perfiles.indexOf(perfil);
+  final colors = [Colors.blue, Colors.green, Colors.orange, Colors.purple];
+  return colors[index % colors.length];
 }

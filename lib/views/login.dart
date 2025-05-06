@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:wallet_safe/models/cuenta.dart';
 import 'package:wallet_safe/views/profiles.dart';
 import 'package:wallet_safe/views/register.dart';
+import 'package:wallet_safe/services/cuenta_service.dart';
 
 class LoginView extends StatefulWidget {
   LoginView({super.key});
@@ -13,6 +14,51 @@ class LoginView extends StatefulWidget {
 class _LoginViewState extends State<LoginView> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
+
+  bool _isLoading = false;
+
+  Future<void> _login() async {
+    setState(() => _isLoading = true);
+    final correo = emailController.text;
+    final contrasena = passwordController.text;
+
+    try {
+      final response = await CuentaService().login(correo, contrasena);
+
+      if (response['estado'] == 'ok') {
+        final usuario = response['usuario'];
+
+        final cuenta = Cuenta(
+          name: usuario['nombre'],
+          email: usuario['correo'],
+          password: contrasena,
+        );
+
+        Cuenta.cuentaActiva = cuenta;
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => ProfileViews(cuenta: cuenta)),
+        );
+      } else {
+        _mostrarError(response['mensaje'] ?? 'Error desconocido');
+      }
+    } catch (e) {
+      _mostrarError('Fallo en la conexión con el servidor');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  void _mostrarError(String mensaje) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(mensaje),
+        backgroundColor: Colors.redAccent,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -50,34 +96,11 @@ class _LoginViewState extends State<LoginView> {
             ),
             const SizedBox(height: 30),
             ElevatedButton(
-              onPressed: () {
-                // Aquí iría la lógica para iniciar sesión
-                final correo = emailController.text;
-                final contrasena = passwordController.text;
-
-                if (Cuenta.iniciarSesion(correo, contrasena)) {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder:
-                          (context) =>
-                              ProfileViews(cuenta: Cuenta.cuentaActiva!),
-                    ),
-                  );
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Correo o contraseña incorrectos'),
-                      backgroundColor: Colors.redAccent,
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                }
-
-                print('Usuario: $correo');
-                print('Contraseña: $contrasena');
-              },
-              child: const Text('Iniciar Sesión'),
+              onPressed: _isLoading ? null : _login,
+              child:
+                  _isLoading
+                      ? CircularProgressIndicator(color: Colors.white)
+                      : const Text('Iniciar Sesión'),
             ),
             const SizedBox(height: 10),
             Row(

@@ -26,13 +26,13 @@ class HomePage extends StatelessWidget {
           navigatorkey: _navigatorKeys[0],
         ),
         PersistentTabItem(
-          tab: IngresosTab(),
+          tab: IngresosTab(cuenta: cuenta, perfil: perfil),
           icon: Icons.savings, // ¡ícono tipo alcancía!
           title: 'Ingresos',
           navigatorkey: _navigatorKeys[1],
         ),
         PersistentTabItem(
-          tab: GastosTab(),
+          tab: GastosTab(cuenta: cuenta, perfil: perfil),
           icon: Icons.money_off, // ícono que representa gasto
           title: 'Gastos',
           navigatorkey: _navigatorKeys[2],

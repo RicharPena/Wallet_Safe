@@ -13,13 +13,7 @@ class ProfileViews extends StatefulWidget {
 }
 
 class _ProfileViewsState extends State<ProfileViews> {
-  int idCounter = 1; // Para generar IDs únicos
   List<Perfil> get perfiles => widget.cuenta.perfiles;
-
-  @override
-  void initState() {
-    super.initState();
-  }
 
   void _agregarPerfil() {
     String nuevoNombre = '';
@@ -27,26 +21,24 @@ class _ProfileViewsState extends State<ProfileViews> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text('Crear nuevo perfil'),
+          title: const Text('Crear perfil familiar'),
           content: TextField(
             onChanged: (value) {
               nuevoNombre = value;
             },
-            decoration: InputDecoration(hintText: 'Nombre del perfil'),
+            decoration: const InputDecoration(hintText: 'Nombre del perfil'),
           ),
           actions: [
             TextButton(
               onPressed: () {
                 if (nuevoNombre.trim().isNotEmpty && perfiles.length < 4) {
                   setState(() {
-                    widget.cuenta.perfiles.add(
-                      Perfil(id: idCounter++, nombre: nuevoNombre.trim()),
-                    );
+                    widget.cuenta.agregarFamiliar(nuevoNombre.trim());
                   });
                   Navigator.pop(context);
                 }
               },
-              child: Text('Crear'),
+              child: const Text('Crear'),
             ),
           ],
         );
@@ -79,7 +71,7 @@ class _ProfileViewsState extends State<ProfileViews> {
         alignment: Alignment.center,
         child: Text(
           perfil.nombre,
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
       ),
     );
@@ -114,9 +106,9 @@ class _ProfileViewsState extends State<ProfileViews> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Text('Seleccionar perfil'),
+        title: const Text('Seleccionar perfil'),
         centerTitle: true,
-        backgroundColor: Color.fromARGB(215, 88, 242, 106),
+        backgroundColor: const Color.fromARGB(215, 88, 242, 106),
       ),
       body: Center(
         child: Padding(

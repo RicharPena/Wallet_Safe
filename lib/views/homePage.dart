@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:wallet_safe/models/cuenta.dart';
 import 'package:wallet_safe/models/perfil.dart';
+import 'package:wallet_safe/views/profiles.dart';
 import 'package:wallet_safe/views/tabs/home_tab.dart';
 import 'package:wallet_safe/views/tabs/ingresos_tab.dart';
 import 'package:wallet_safe/views/tabs/gastos_tab.dart';
@@ -20,7 +21,16 @@ class HomePage extends StatelessWidget {
     return PersistentBottomBarScaffold(
       items: [
         PersistentTabItem(
-          tab: HomeTab(cuenta: cuenta, perfil: perfil),
+          tab: HomeTab(
+            cuenta: cuenta,
+            perfil: perfil,
+            onLogout: () {
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => ProfileViews(cuenta: cuenta)),
+                (route) => false,
+              );
+            },
+          ),
           icon: Icons.home,
           title: 'Inicio',
           navigatorkey: _navigatorKeys[0],
@@ -44,7 +54,7 @@ class HomePage extends StatelessWidget {
           navigatorkey: _navigatorKeys[3],
         ),
         PersistentTabItem(
-          tab: ConfiguracionTab(),
+          tab: ConfigTab(cuenta: cuenta),
           icon: Icons.settings, // tuerca
           title: 'Ajustes',
           navigatorkey: _navigatorKeys[4],

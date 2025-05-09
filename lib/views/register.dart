@@ -81,7 +81,7 @@ class _RegisterPageState extends State<RegisterPage> {
             // Botón de registrar
             ElevatedButton(
               onPressed: () async {
-                final result = registerController.validarRegistro(
+                final result = await registerController.validarRegistro(
                   name: nameController.text,
                   email: emailController.text,
                   password: passwordController.text,
@@ -91,8 +91,6 @@ class _RegisterPageState extends State<RegisterPage> {
                 ScaffoldMessenger.of(
                   context,
                 ).showSnackBar(SnackBar(content: Text(result)));
-
-                await Future.delayed(Duration(seconds: 1));
 
                 if (result == 'Registro exitoso') {
                   Navigator.pop(context);

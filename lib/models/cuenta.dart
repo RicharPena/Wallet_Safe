@@ -4,16 +4,17 @@ import 'package:wallet_safe/models/familia.dart';
 import 'package:wallet_safe/services/cuenta_service.dart';
 
 class Cuenta {
-  final String name;
-  final String email;
-  final String password;
+  final int? id;
+  String name;
+  String email;
+  final String? password;
 
   final List<Perfil> perfiles = [];
 
   static Cuenta? cuentaActiva;
 
   // Constructor: crea el Titular como el primer perfil
-  Cuenta({required this.name, required this.email, required this.password}) {
+  Cuenta({this.id, required this.name, required this.email, this.password}) {
     perfiles.add(Titular(id: 0, nombre: 'Titular'));
   }
 
@@ -45,6 +46,7 @@ class Cuenta {
     if (response['estado'] == 'ok') {
       final usuario = response['usuario'];
       final cuenta = Cuenta(
+        id: usuario['id'],
         name: usuario['nombre'],
         email: usuario['correo'],
         password: contrasena,
@@ -54,6 +56,40 @@ class Cuenta {
     } else {
       return null;
     }
+  }
+
+  //MÉTODO PARA REGISTRARSE
+  static Future<String> registrarCuentaRemota({
+    required String name,
+    required String email,
+    required String password,
+  }) async {
+    final response = await CuentaService().registrar({
+      'nombre': name,
+      'correo': email,
+      'contrasena': password,
+    });
+
+    if (response['estado'] == 'ok') {
+      final cuenta = Cuenta(name: name, email: email, password: password);
+      _cuentas.add(cuenta);
+      return 'Registro exitoso';
+    } else {
+      return response['mensaje'] ?? 'Error desconocido';
+    }
+  }
+
+  //MÉTODO PARA EDITAR CUENTA
+  factory Cuenta.fromJson(Map<String, dynamic> json) {
+    return Cuenta(
+      id: int.parse(json['id'].toString()),
+      name: json['nombre'],
+      email: json['correo'],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {'id': id, 'nombre': name, 'correo': email};
   }
 
   static Cuenta? obtenerCuenta(String email) {

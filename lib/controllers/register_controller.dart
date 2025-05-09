@@ -1,12 +1,12 @@
 import 'package:wallet_safe/models/cuenta.dart';
 
 class RegisterController {
-  String validarRegistro({
+  Future<String> validarRegistro({
     required String name,
     required String email,
     required String password,
     required String confirmPassword,
-  }) {
+  }) async {
     if (name.trim().isEmpty ||
         email.trim().isEmpty ||
         password.isEmpty ||
@@ -22,11 +22,14 @@ class RegisterController {
       return 'Las contraseñas no coinciden';
     }
 
-    // Aquí llamar a la capa de persistencia
-    Cuenta newAccount = Cuenta(name: name, email: email, password: password);
-    Cuenta.registrar(newAccount);
+    // Lógica de persistencia con API
+    final resultado = await Cuenta.registrarCuentaRemota(
+      name: name,
+      email: email,
+      password: password,
+    );
 
-    return 'Registro exitoso';
+    return resultado;
   }
 
   bool _isValidEmail(String email) {

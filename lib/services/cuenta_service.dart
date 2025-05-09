@@ -1,11 +1,15 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:wallet_safe/models/cuenta.dart';
 
 class CuentaService {
+  //final String baseUrl = 'http://10.0.2.2/proyecto_wallet_safe/controlador/broker.php'; // Para Emulador Android
   final String baseUrl =
-      'http://10.0.2.2/proyecto_wallet_safe/controlador/broker.php'; // Cambia esta URL
+      'http://172.16.18.132/proyecto_wallet_safe/controlador/broker.php'; // Para celular físico (cambiar IP)
+  //final String baseUrl = 'http://localhost/proyecto_wallet_safe/controlador/broker.php'; // Para cargar en página web
 
+  //MÉTODO PARA REGISTRAR
   Future<Map<String, dynamic>> registrar(Map<String, dynamic> datos) async {
     final response = await http.post(
       Uri.parse('$baseUrl?accion=registrar'),
@@ -16,6 +20,7 @@ class CuentaService {
     return _procesarRespuesta(response);
   }
 
+  //MÉTODO PARA EL LOGIN
   Future<Map<String, dynamic>> login(String correo, String contrasena) async {
     final response = await http.post(
       Uri.parse('$baseUrl?accion=login'),
@@ -26,16 +31,32 @@ class CuentaService {
     return _procesarRespuesta(response);
   }
 
-  Future<Map<String, dynamic>> editarPerfil(Map<String, dynamic> datos) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl?accion=editar'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(datos),
-    );
+  //MÉTODO PARA EDITAR PERFIL
+  Future<bool> editarPerfil(Cuenta cuenta, {String? nuevaContrasena}) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${baseUrl}?accion=editar'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'id': cuenta.id,
+          'nombre': cuenta.name,
+          'correo': cuenta.email,
+          if (nuevaContrasena != null && nuevaContrasena.isNotEmpty)
+            'contrasena': nuevaContrasena,
+        }),
+      );
 
-    return _procesarRespuesta(response);
+      print('Raw response: ${response.body}');
+
+      final data = jsonDecode(response.body);
+      return data['estado'] == 'ok';
+    } catch (e) {
+      print('Error al editar perfil: $e');
+      return false;
+    }
   }
 
+  //MÉTODO AUXILIAR PARA EL PROCESAMIENTO DE LA RESPUESTA
   Map<String, dynamic> _procesarRespuesta(http.Response response) {
     final body = response.body;
     debugPrint(

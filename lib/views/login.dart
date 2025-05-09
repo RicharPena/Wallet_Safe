@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:wallet_safe/models/cuenta.dart';
 import 'package:wallet_safe/views/profiles.dart';
 import 'package:wallet_safe/views/register.dart';
-import 'package:wallet_safe/services/cuenta_service.dart';
 
 class LoginView extends StatefulWidget {
   LoginView({super.key});
@@ -23,25 +22,15 @@ class _LoginViewState extends State<LoginView> {
     final contrasena = passwordController.text;
 
     try {
-      final response = await CuentaService().login(correo, contrasena);
+      final cuenta = await Cuenta.iniciarSesion(correo, contrasena);
 
-      if (response['estado'] == 'ok') {
-        final usuario = response['usuario'];
-
-        final cuenta = Cuenta(
-          name: usuario['nombre'],
-          email: usuario['correo'],
-          password: contrasena,
-        );
-
-        Cuenta.cuentaActiva = cuenta;
-
+      if (cuenta != null) {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => ProfileViews(cuenta: cuenta)),
         );
       } else {
-        _mostrarError(response['mensaje'] ?? 'Error desconocido');
+        _mostrarError('Correo o contraseña incorrectos');
       }
     } catch (e) {
       _mostrarError('Fallo en la conexión con el servidor');

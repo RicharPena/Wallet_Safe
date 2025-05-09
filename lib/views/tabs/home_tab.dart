@@ -9,8 +9,14 @@ import 'package:wallet_safe/controllers/graphics_helper_controller.dart';
 class HomeTab extends StatefulWidget {
   final Perfil perfil;
   final Cuenta cuenta;
+  final VoidCallback onLogout;
 
-  const HomeTab({required this.cuenta, required this.perfil, super.key});
+  const HomeTab({
+    required this.cuenta,
+    required this.perfil,
+    required this.onLogout,
+    super.key,
+  });
 
   @override
   State<HomeTab> createState() => _HomeTabState();
@@ -89,6 +95,10 @@ class _HomeTabState extends State<HomeTab> {
             children: [
               // 👋 Nombre del usuario
               AppBar(
+                leading: IconButton(
+                  icon: Icon(Icons.arrow_back),
+                  onPressed: widget.onLogout,
+                ),
                 title: Text(
                   'Hola, ${widget.perfil.nombre}',
                   style: const TextStyle(

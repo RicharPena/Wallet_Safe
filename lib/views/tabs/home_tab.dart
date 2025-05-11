@@ -5,6 +5,7 @@ import 'package:wallet_safe/controllers/home_tab_oprofiles_cotroller.dart';
 import 'package:wallet_safe/models/cuenta.dart';
 import 'package:wallet_safe/models/perfil.dart';
 import 'package:wallet_safe/controllers/graphics_helper_controller.dart';
+import 'package:wallet_safe/widgets/resumen_lineal.dart';
 
 class HomeTab extends StatefulWidget {
   final Perfil perfil;
@@ -145,88 +146,13 @@ class _HomeTabState extends State<HomeTab> {
               ),
               const SizedBox(height: 20),
 
-              Container(
-                margin: const EdgeInsets.symmetric(vertical: 8),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black12,
-                      blurRadius: 6,
-                      offset: Offset(0, 3),
-                    ),
-                  ],
-                ),
-                child: AspectRatio(
-                  aspectRatio: 1.6,
-                  child: LineChart(
-                    LineChartData(
-                      minX: bounds.minX,
-                      maxX: bounds.maxX,
-                      minY: bounds.minY,
-                      maxY: bounds.maxY,
-                      titlesData: FlTitlesData(
-                        bottomTitles: AxisTitles(
-                          sideTitles: SideTitles(
-                            showTitles: true,
-                            interval: 1,
-                            getTitlesWidget: (value, meta) {
-                              final index = value.toInt();
-                              // Aquí puedes personalizar los labels tipo "Lun", "Mar", etc.
-                              final label =
-                                  currentView == 'Mes'
-                                      ? 'D${index + 1}' // Día del mes
-                                      : currentView == 'Semana'
-                                      ? [
-                                        'L',
-                                        'M',
-                                        'X',
-                                        'J',
-                                        'V',
-                                        'S',
-                                        'D',
-                                      ][index % 7]
-                                      : 'Hoy';
-                              return SideTitleWidget(
-                                axisSide: meta.axisSide,
-                                child: Text(
-                                  label,
-                                  style: TextStyle(fontSize: 10),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                        leftTitles: AxisTitles(
-                          sideTitles: SideTitles(
-                            showTitles: true,
-                            reservedSize: 50,
-                            getTitlesWidget: (value, meta) {
-                              final text =
-                                  value >= 1000000
-                                      ? "${(value / 1000000).toStringAsFixed(1)}M"
-                                      : value >= 1000
-                                      ? "${(value / 1000).toStringAsFixed(0)}k"
-                                      : value.toInt().toString();
-                              return Text(text, style: TextStyle(fontSize: 10));
-                            },
-                          ),
-                        ),
-                        topTitles: AxisTitles(
-                          sideTitles: SideTitles(showTitles: false),
-                        ),
-                        rightTitles: AxisTitles(
-                          sideTitles: SideTitles(showTitles: false),
-                        ),
-                      ),
-                      gridData: FlGridData(show: true),
-                      borderData: FlBorderData(show: false),
-                      lineBarsData: [...titularLine, ...otrasLineas],
-                    ),
-                  ),
-                ),
+              ResumenLineChart(
+                minX: bounds.minX,
+                maxX: bounds.maxX,
+                minY: bounds.minY,
+                maxY: bounds.maxY,
+                lineBarsData: [...titularLine, ...otrasLineas],
+                currentView: currentView,
               ),
 
               // Botones de vista

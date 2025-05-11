@@ -4,6 +4,9 @@ class GraphHelper {
   static ({double minX, double maxX, double minY, double maxY}) getMinMax(
     List<FlSpot> spots,
   ) {
+    if (spots.isEmpty) {
+      return (minX: 0, maxX: 1, minY: 0, maxY: 1);
+    }
     double minX = spots.first.x;
     double maxX = spots.first.x;
     double minY = spots.first.y;

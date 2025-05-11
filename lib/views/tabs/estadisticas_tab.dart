@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:wallet_safe/models/gastos.dart';
-import 'package:wallet_safe/models/ingresos.dart';
 import 'package:wallet_safe/models/perfil.dart';
 import 'package:wallet_safe/widgets/gastos_chart.dart';
 import 'package:wallet_safe/widgets/ingresos_chart.dart';

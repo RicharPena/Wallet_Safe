@@ -1,7 +1,5 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:wallet_safe/models/perfil.dart';
-import 'package:wallet_safe/models/ingresos.dart';
-import 'package:wallet_safe/models/gastos.dart';
 
 class TitularController {
   static List<FlSpot> getLineSpots(Perfil perfil, String vista) {

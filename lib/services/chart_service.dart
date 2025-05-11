@@ -1,6 +1,4 @@
 import 'package:intl/intl.dart';
-import 'package:wallet_safe/models/ingresos.dart';
-import 'package:wallet_safe/services/chart_service.dart';
 
 enum DateRange { diario, semanal, mensual }
 

@@ -18,6 +18,7 @@ class _ConfigTabState extends State<ConfigTab> {
   late TextEditingController _nombreController;
   late TextEditingController _correoController;
   late TextEditingController _contrasenaController;
+  late TextEditingController _confirContrasenaC;
 
   bool _editando = false;
 
@@ -27,6 +28,7 @@ class _ConfigTabState extends State<ConfigTab> {
     _nombreController = TextEditingController(text: widget.cuenta.name);
     _correoController = TextEditingController(text: widget.cuenta.email);
     _contrasenaController = TextEditingController();
+    _confirContrasenaC = TextEditingController();
   }
 
   @override
@@ -34,11 +36,18 @@ class _ConfigTabState extends State<ConfigTab> {
     _nombreController.dispose();
     _correoController.dispose();
     _contrasenaController.dispose();
+    _confirContrasenaC.dispose();
     super.dispose();
   }
 
   Future<void> _guardarCambios() async {
     if (_formKey.currentState!.validate()) {
+      if (_contrasenaController.text != _confirContrasenaC.text) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Las contraseñas no coinciden')));
+        return;
+      }
       widget.cuenta.name = _nombreController.text.trim();
       widget.cuenta.email = _correoController.text.trim();
 
@@ -114,6 +123,21 @@ class _ConfigTabState extends State<ConfigTab> {
                 obscureText: true,
                 enabled: _editando,
               ),
+              if (_editando)
+                TextFormField(
+                  controller: _confirContrasenaC,
+                  decoration: InputDecoration(
+                    labelText: 'Confirmar nueva contraseña',
+                  ),
+                  obscureText: true,
+                  validator: (value) {
+                    if (_contrasenaController.text.isNotEmpty &&
+                        value != _contrasenaController.text) {
+                      return 'Las contraseñas no coinciden';
+                    }
+                    return null;
+                  },
+                ),
               if (_editando)
                 Padding(
                   padding: const EdgeInsets.only(top: 20),

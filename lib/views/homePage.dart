@@ -48,7 +48,7 @@ class HomePage extends StatelessWidget {
           navigatorkey: _navigatorKeys[2],
         ),
         PersistentTabItem(
-          tab: EstadisticasTab(),
+          tab: EstadisticasTab(perfil: perfil),
           icon: Icons.bar_chart, // gráfico de barras
           title: 'Estadísticas',
           navigatorkey: _navigatorKeys[3],

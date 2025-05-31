@@ -26,6 +26,15 @@ class ResumenLineChart extends StatelessWidget {
         child: Text("No hay datos para mostrar en el gráfico"),
       );
     }
+
+    final Set<double> hoyXValues =
+        currentView == 'Hoy'
+            ? lineBarsData
+                .expand((bar) => bar.spots)
+                .map((spot) => spot.x)
+                .toSet()
+            : {};
+
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8),
       padding: const EdgeInsets.all(12),
@@ -48,9 +57,11 @@ class ResumenLineChart extends StatelessWidget {
               bottomTitles: AxisTitles(
                 sideTitles: SideTitles(
                   showTitles: true,
-                  interval: 1,
                   getTitlesWidget: (value, meta) {
                     if (currentView == 'Hoy') {
+                      if (!hoyXValues.contains(value)) {
+                        return const SizedBox.shrink();
+                      }
                       final totalMin = value.toInt();
                       final hour = (totalMin ~/ 60).toString().padLeft(2, '0');
                       final min = (totalMin % 60).toString().padLeft(2, '0');

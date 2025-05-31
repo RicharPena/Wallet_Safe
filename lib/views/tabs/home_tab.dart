@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:wallet_safe/controllers/home_tab_titular_controller.dart';
-import 'package:wallet_safe/controllers/home_tab_oprofiles_cotroller.dart';
+import 'package:wallet_safe/controllers/home_tab_profiles_controller.dart';
 import 'package:wallet_safe/models/cuenta.dart';
 import 'package:wallet_safe/models/perfil.dart';
 import 'package:wallet_safe/controllers/graphics_helper_controller.dart';
@@ -25,7 +24,7 @@ class HomeTab extends StatefulWidget {
 
 class _HomeTabState extends State<HomeTab> {
   String currentView = 'Hoy'; // Control de vista (Hoy, Semana, Mes)
-  double dineroActual = 23450.00; // También podría venir de tu lógica
+  double dineroActual = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -33,16 +32,18 @@ class _HomeTabState extends State<HomeTab> {
     final perfilesNormales =
         widget.cuenta.perfiles.where((p) => p.nombre != "Titular").toList();
 
+    final dineroActual = calcularDineroActual(widget.perfil, currentView);
+
     final List<FlSpot> titularSpots =
         isTitular
-            ? TitularController.getLineSpots(widget.perfil, currentView)
+            ? ProfilesController.getLineSpots(widget.perfil, currentView)
             : [];
 
     // Otras líneas para perfiles normales
     final otrasLineas =
         isTitular
             ? perfilesNormales.map((perfil) {
-              final spots = OProfilesController.getLineSpots(
+              final spots = ProfilesController.getLineSpots(
                 perfil,
                 currentView,
               );
@@ -58,7 +59,7 @@ class _HomeTabState extends State<HomeTab> {
             }).toList()
             : [
               LineChartBarData(
-                spots: OProfilesController.getLineSpots(
+                spots: ProfilesController.getLineSpots(
                   widget.perfil,
                   currentView,
                 ),
@@ -182,6 +183,42 @@ class _HomeTabState extends State<HomeTab> {
         ),
       ),
     );
+  }
+
+  //Método auxiliar para calculo de dinero actual
+  double calcularDineroActual(Perfil perfil, String vista) {
+    DateTime now = DateTime.now();
+
+    bool filtrarPorVista(DateTime fecha) {
+      final hoy = DateTime(now.year, now.month, now.day);
+      switch (vista) {
+        case 'Hoy':
+          return fecha.year == hoy.year &&
+              fecha.month == hoy.month &&
+              fecha.day == hoy.day;
+        case 'Semana':
+          final inicioSemana = hoy.subtract(Duration(days: hoy.weekday - 1));
+          final finSemana = inicioSemana.add(Duration(days: 6));
+          return fecha.isAfter(
+                inicioSemana.subtract(const Duration(seconds: 1)),
+              ) &&
+              fecha.isBefore(finSemana.add(const Duration(days: 1)));
+        case 'Mes':
+          return fecha.year == hoy.year && fecha.month == hoy.month;
+        default:
+          return true;
+      }
+    }
+
+    final totalIngresos = perfil.cnIngresos
+        .where((i) => filtrarPorVista(i.fecha))
+        .fold(0.0, (sum, i) => sum + i.monto);
+
+    final totalGastos = perfil.cnGastos
+        .where((g) => filtrarPorVista(g.fecha))
+        .fold(0.0, (sum, g) => sum + g.monto);
+
+    return totalIngresos - totalGastos;
   }
 }
 

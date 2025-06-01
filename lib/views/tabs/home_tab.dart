@@ -148,8 +148,6 @@ class _HomeTabState extends State<HomeTab> {
               const SizedBox(height: 20),
 
               ResumenLineChart(
-                minX: bounds.minX,
-                maxX: bounds.maxX,
                 minY: bounds.minY,
                 maxY: bounds.maxY,
                 lineBarsData: [...titularLine, ...otrasLineas],

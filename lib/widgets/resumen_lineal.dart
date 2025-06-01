@@ -2,17 +2,13 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
 class ResumenLineChart extends StatelessWidget {
-  final double minX;
-  final double maxX;
   final double minY;
   final double maxY;
   final List<LineChartBarData> lineBarsData;
-  final String currentView; // 'Semana', 'Mes', etc.
+  final String currentView; // 'Hoy', 'Semana', 'Mes', etc.
 
   const ResumenLineChart({
     Key? key,
-    required this.minX,
-    required this.maxX,
     required this.minY,
     required this.maxY,
     required this.lineBarsData,
@@ -27,13 +23,39 @@ class ResumenLineChart extends StatelessWidget {
       );
     }
 
-    final Set<double> hoyXValues =
-        currentView == 'Hoy'
-            ? lineBarsData
-                .expand((bar) => bar.spots)
-                .map((spot) => spot.x)
-                .toSet()
-            : {};
+    late List<LineChartBarData> chartData;
+    double minX, maxX;
+    Map<int, double> reverseXMap = {};
+
+    if (currentView == 'Hoy') {
+      // Normalización de X para vista 'Hoy'
+      final originalSpots = lineBarsData.first.spots;
+      final sortedSpots =
+          originalSpots.toList()..sort((a, b) => a.x.compareTo(b.x));
+
+      final Map<double, int> xMap = {
+        for (int i = 0; i < sortedSpots.length; i++) sortedSpots[i].x: i,
+      };
+      reverseXMap = {for (var entry in xMap.entries) entry.value: entry.key};
+
+      chartData =
+          lineBarsData.map((bar) {
+            final newSpots =
+                bar.spots
+                    .map((spot) => FlSpot(xMap[spot.x]!.toDouble(), spot.y))
+                    .toList();
+            return bar.copyWith(spots: newSpots);
+          }).toList();
+
+      minX = 0;
+      maxX = reverseXMap.length.toDouble() - 1;
+    } else {
+      // Sin normalización para otras vistas
+      chartData = lineBarsData;
+      final allX = chartData.expand((bar) => bar.spots).map((e) => e.x);
+      minX = allX.reduce((a, b) => a < b ? a : b);
+      maxX = allX.reduce((a, b) => a > b ? a : b);
+    }
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8),
@@ -59,16 +81,31 @@ class ResumenLineChart extends StatelessWidget {
                   showTitles: true,
                   getTitlesWidget: (value, meta) {
                     if (currentView == 'Hoy') {
-                      if (!hoyXValues.contains(value)) {
-                        return const SizedBox.shrink();
+                      final originalX = reverseXMap[value.toInt()];
+                      if (originalX == null) return const SizedBox.shrink();
+
+                      final totalMin = originalX;
+                      final hour = (totalMin ~/ 60).toInt();
+                      final minute = (totalMin % 60).toInt();
+                      final label =
+                          '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
+
+                      // Mostrar solo cada N puntos y evitar etiquetas duplicadas
+                      const step =
+                          1; // puedes usar 2 o 3 si quieres menos etiquetas
+                      if (value % step != 0) return const SizedBox.shrink();
+
+                      // Evitar repetir el mismo label muchas veces
+                      final previousX = reverseXMap[(value - 1).toInt()];
+                      if (previousX != null) {
+                        final prevLabel =
+                            '${(previousX ~/ 60).toString().padLeft(2, '0')}:${(previousX % 60).toString().padLeft(2, '0')}';
+                        if (label == prevLabel) return const SizedBox.shrink();
                       }
-                      final totalMin = value.toInt();
-                      final hour = (totalMin ~/ 60).toString().padLeft(2, '0');
-                      final min = (totalMin % 60).toString().padLeft(2, '0');
                       return SideTitleWidget(
                         axisSide: meta.axisSide,
                         child: Text(
-                          '$hour:$min',
+                          label,
                           style: const TextStyle(fontSize: 10),
                         ),
                       );
@@ -85,8 +122,7 @@ class ResumenLineChart extends StatelessWidget {
                       );
                     } else if (currentView == 'Mes') {
                       final index = value.toInt();
-                      final semana =
-                          (index ~/ 7) + 1; // Cada 7 días, nueva semana
+                      final semana = (index ~/ 7) + 1;
                       return SideTitleWidget(
                         axisSide: meta.axisSide,
                         child: Text(
@@ -95,8 +131,7 @@ class ResumenLineChart extends StatelessWidget {
                         ),
                       );
                     }
-
-                    return const SizedBox.shrink(); // Fallback
+                    return const SizedBox.shrink();
                   },
                 ),
               ),
@@ -122,7 +157,7 @@ class ResumenLineChart extends StatelessWidget {
             ),
             gridData: FlGridData(show: true),
             borderData: FlBorderData(show: false),
-            lineBarsData: lineBarsData,
+            lineBarsData: chartData,
           ),
         ),
       ),

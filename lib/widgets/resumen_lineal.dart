@@ -17,7 +17,8 @@ class ResumenLineChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (lineBarsData.isEmpty || lineBarsData.first.spots.isEmpty) {
+    if (lineBarsData.isEmpty ||
+        lineBarsData.every((bar) => bar.spots.isEmpty)) {
       return const Center(
         child: Text("No hay datos para mostrar en el gráfico"),
       );
@@ -25,16 +26,17 @@ class ResumenLineChart extends StatelessWidget {
 
     late List<LineChartBarData> chartData;
     double minX, maxX;
-    Map<int, double> reverseXMap = {};
+    Map<int, double> reverseXMap = {}; // Solo para 'Hoy'
 
     if (currentView == 'Hoy') {
-      // Normalización de X para vista 'Hoy'
-      final originalSpots = lineBarsData.first.spots;
-      final sortedSpots =
-          originalSpots.toList()..sort((a, b) => a.x.compareTo(b.x));
+      final allSpots = lineBarsData.expand((bar) => bar.spots).toList();
+      final uniqueSortedSpots =
+          allSpots.map((spot) => spot.x).toSet().toList()
+            ..sort((a, b) => a.compareTo(b));
 
       final Map<double, int> xMap = {
-        for (int i = 0; i < sortedSpots.length; i++) sortedSpots[i].x: i,
+        for (int i = 0; i < uniqueSortedSpots.length; i++)
+          uniqueSortedSpots[i]: i,
       };
       reverseXMap = {for (var entry in xMap.entries) entry.value: entry.key};
 
@@ -49,12 +51,28 @@ class ResumenLineChart extends StatelessWidget {
 
       minX = 0;
       maxX = reverseXMap.length.toDouble() - 1;
+    } else if (currentView == 'Semana') {
+      // Los datos ya vienen procesados de ProfilesController.
+      // Simplemente usa los lineBarsData directamente.
+      chartData =
+          lineBarsData
+              .map(
+                (bar) => bar.copyWith(
+                  dotData: FlDotData(
+                    show: true,
+                  ), // Mostrar los puntos para cada día
+                ),
+              )
+              .toList();
+      minX = 0; // Lunes
+      maxX = 6; // Domingo
     } else {
-      // Sin normalización para otras vistas
+      // Vista 'Mes' u otras: sin modificar X
       chartData = lineBarsData;
+      // Calcula minX y maxX si no hay datos o son nulos
       final allX = chartData.expand((bar) => bar.spots).map((e) => e.x);
-      minX = allX.reduce((a, b) => a < b ? a : b);
-      maxX = allX.reduce((a, b) => a > b ? a : b);
+      minX = allX.isEmpty ? 0 : allX.reduce((a, b) => a < b ? a : b);
+      maxX = allX.isEmpty ? 0 : allX.reduce((a, b) => a > b ? a : b);
     }
 
     return Container(
@@ -79,29 +97,20 @@ class ResumenLineChart extends StatelessWidget {
               bottomTitles: AxisTitles(
                 sideTitles: SideTitles(
                   showTitles: true,
+                  interval: 1, // Muestra cada día
                   getTitlesWidget: (value, meta) {
                     if (currentView == 'Hoy') {
                       final originalX = reverseXMap[value.toInt()];
                       if (originalX == null) return const SizedBox.shrink();
 
-                      final totalMin = originalX;
-                      final hour = (totalMin ~/ 60).toInt();
-                      final minute = (totalMin % 60).toInt();
+                      final hour = (originalX ~/ 60).toInt();
+                      final minute = (originalX % 60).toInt();
                       final label =
                           '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
 
-                      // Mostrar solo cada N puntos y evitar etiquetas duplicadas
-                      const step =
-                          1; // puedes usar 2 o 3 si quieres menos etiquetas
+                      const step = 1; // Ajusta según la densidad deseada
                       if (value % step != 0) return const SizedBox.shrink();
 
-                      // Evitar repetir el mismo label muchas veces
-                      final previousX = reverseXMap[(value - 1).toInt()];
-                      if (previousX != null) {
-                        final prevLabel =
-                            '${(previousX ~/ 60).toString().padLeft(2, '0')}:${(previousX % 60).toString().padLeft(2, '0')}';
-                        if (label == prevLabel) return const SizedBox.shrink();
-                      }
                       return SideTitleWidget(
                         axisSide: meta.axisSide,
                         child: Text(
@@ -112,17 +121,22 @@ class ResumenLineChart extends StatelessWidget {
                     } else if (currentView == 'Semana') {
                       final dias = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
                       final index = value.toInt();
-                      final label = dias[index % 7];
-                      return SideTitleWidget(
-                        axisSide: meta.axisSide,
-                        child: Text(
-                          label,
-                          style: const TextStyle(fontSize: 10),
-                        ),
-                      );
+                      if (index >= 0 && index < dias.length) {
+                        final label = dias[index];
+                        return SideTitleWidget(
+                          axisSide: meta.axisSide,
+                          child: Text(
+                            label,
+                            style: const TextStyle(fontSize: 10),
+                          ),
+                        );
+                      }
+                      return const SizedBox.shrink();
                     } else if (currentView == 'Mes') {
+                      // Mantén tu lógica existente o modifícala si es necesario
                       final index = value.toInt();
-                      final semana = (index ~/ 7) + 1;
+                      final semana =
+                          (index ~/ 7) + 1; // Esto es una aproximación
                       return SideTitleWidget(
                         axisSide: meta.axisSide,
                         child: Text(

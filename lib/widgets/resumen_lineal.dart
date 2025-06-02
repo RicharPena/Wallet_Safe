@@ -15,6 +15,12 @@ class ResumenLineChart extends StatelessWidget {
     required this.currentView,
   }) : super(key: key);
 
+  // Función auxiliar para obtener el inicio de la semana (Lunes)
+  static DateTime _getStartOfWeek(DateTime date) {
+    DateTime normalizedDate = DateTime(date.year, date.month, date.day);
+    return normalizedDate.subtract(Duration(days: normalizedDate.weekday - 1));
+  }
+
   @override
   Widget build(BuildContext context) {
     if (lineBarsData.isEmpty ||
@@ -27,6 +33,21 @@ class ResumenLineChart extends StatelessWidget {
     late List<LineChartBarData> chartData;
     double minX, maxX;
     Map<int, double> reverseXMap = {}; // Solo para 'Hoy'
+
+    final int todayWeekdayIndex = DateTime.now().weekday - 1;
+    // Calcular la semana actual del mes para la vista 'Mes'
+    final DateTime now = DateTime.now();
+    final DateTime startOfMonth = DateTime(now.year, now.month, 1);
+    final DateTime startOfCurrentWeek = _getStartOfWeek(now);
+    int currentWeekIndex = 0;
+
+    // Calcula el índice de la semana actual dentro del mes (0-indexed)
+    // Se basa en cuántas semanas completas (o parciales) han pasado desde el inicio del mes
+    DateTime tempWeekStart = _getStartOfWeek(startOfMonth);
+    while (tempWeekStart.isBefore(startOfCurrentWeek)) {
+      currentWeekIndex++;
+      tempWeekStart = tempWeekStart.add(const Duration(days: 7));
+    }
 
     if (currentView == 'Hoy') {
       final allSpots = lineBarsData.expand((bar) => bar.spots).toList();
@@ -60,16 +81,55 @@ class ResumenLineChart extends StatelessWidget {
                 (bar) => bar.copyWith(
                   dotData: FlDotData(
                     show: true,
+                    getDotPainter: (spot, percent, bar, index) {
+                      if (index == todayWeekdayIndex) {
+                        return FlDotCirclePainter(
+                          radius: 4,
+                          color: bar.color!, // Usa el color de la línea
+                          strokeColor: Colors.white,
+                          strokeWidth: 2,
+                        );
+                      }
+                      return FlDotCirclePainter(radius: 0);
+                    },
                   ), // Mostrar los puntos para cada día
                 ),
               )
               .toList();
       minX = 0; // Lunes
       maxX = 6; // Domingo
+    } else if (currentView == 'Mes') {
+      chartData =
+          lineBarsData.map((bar) {
+            return bar.copyWith(
+              dotData: FlDotData(
+                show: true, // Habilitar la visibilidad de los puntos
+                getDotPainter: (spot, percent, bar, index) {
+                  // Si el índice del punto es igual al índice de la semana actual, muéstralo
+                  if (index == currentWeekIndex) {
+                    return FlDotCirclePainter(
+                      radius: 4,
+                      color: bar.color!,
+                      strokeColor: Colors.white,
+                      strokeWidth: 2,
+                    );
+                  }
+                  return FlDotCirclePainter(radius: 0); // Ocultar otros puntos
+                },
+              ),
+            );
+          }).toList();
+
+      // Calcular maxX dinámicamente basado en la cantidad de semanas
+      // Asumimos que lineBarsData tiene al menos una barra con spots
+      maxX =
+          lineBarsData.isNotEmpty && lineBarsData[0].spots.isNotEmpty
+              ? lineBarsData[0].spots.length.toDouble() - 1
+              : 3; // Mínimo 4 semanas (0-3)
+
+      minX = 0;
     } else {
-      // Vista 'Mes' u otras: sin modificar X
       chartData = lineBarsData;
-      // Calcula minX y maxX si no hay datos o son nulos
       final allX = chartData.expand((bar) => bar.spots).map((e) => e.x);
       minX = allX.isEmpty ? 0 : allX.reduce((a, b) => a < b ? a : b);
       maxX = allX.isEmpty ? 0 : allX.reduce((a, b) => a > b ? a : b);
@@ -133,17 +193,19 @@ class ResumenLineChart extends StatelessWidget {
                       }
                       return const SizedBox.shrink();
                     } else if (currentView == 'Mes') {
-                      // Mantén tu lógica existente o modifícala si es necesario
                       final index = value.toInt();
-                      final semana =
-                          (index ~/ 7) + 1; // Esto es una aproximación
-                      return SideTitleWidget(
-                        axisSide: meta.axisSide,
-                        child: Text(
-                          'S$semana',
-                          style: const TextStyle(fontSize: 10),
-                        ),
-                      );
+                      // Asegurarse de que el índice sea válido (0, 1, 2, 3, 4)
+                      if (index >= 0 && index < 5) {
+                        // Asume un máximo de 5 semanas visibles
+                        return SideTitleWidget(
+                          axisSide: meta.axisSide,
+                          child: Text(
+                            'S${index + 1}', // S1, S2, S3, S4, S5
+                            style: const TextStyle(fontSize: 10),
+                          ),
+                        );
+                      }
+                      return const SizedBox.shrink();
                     }
                     return const SizedBox.shrink();
                   },

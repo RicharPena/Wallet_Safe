@@ -15,6 +15,20 @@ class ProfilesController {
     return normalizedDate.subtract(Duration(days: normalizedDate.weekday - 1));
   }
 
+  // Función auxiliar para obtener el inicio del mes
+  static DateTime _getStartOfMonth(DateTime date) {
+    return DateTime(date.year, date.month, 1);
+  }
+
+  // Función auxiliar para obtener el final del mes
+  static DateTime _getEndOfMonth(DateTime date) {
+    return DateTime(
+      date.year,
+      date.month + 1,
+      0,
+    ); // Día 0 del siguiente mes es el último día del actual
+  }
+
   static List<FlSpot> getLineSpots(Perfil perfil, String vista) {
     DateTime now = DateTime.now();
 
@@ -111,9 +125,75 @@ class ProfilesController {
       }
       return spots;
     } else if (vista == 'Mes') {
-      // Lógica para el mes, similar a la semana pero por semana/día del mes
-      // (Esta lógica aún necesita ser desarrollada completamente según tus requisitos de 'Mes')
-      return []; // Devolver una lista vacía por ahora hasta implementarla
+      final startOfMonth = _getStartOfMonth(now);
+      final endOfMonth = _getEndOfMonth(now);
+
+      final Map<int, double> weeklyBalances = {}; // balance neto por semana
+      List<DateTime> weeksInMonthStarts = []; // inicio de cada semana en el mes
+
+      // Calcular todas las semanas que tocan este mes
+      DateTime currentWeekStart = _getStartOfWeek(startOfMonth);
+      while (currentWeekStart.isBefore(
+        endOfMonth.add(const Duration(days: 7)),
+      )) {
+        // Asegurarse de capturar la última semana
+        weeksInMonthStarts.add(currentWeekStart);
+        currentWeekStart = currentWeekStart.add(const Duration(days: 7));
+      }
+
+      // Filtrar para asegurar que solo consideramos semanas que realmente pertenecen a este mes
+      // y obtener el balance para cada semana
+      for (int i = 0; i < weeksInMonthStarts.length; i++) {
+        final weekStart = weeksInMonthStarts[i];
+        final weekEnd = weekStart
+            .add(const Duration(days: 7))
+            .subtract(const Duration(microseconds: 1)); // Fin del domingo
+
+        // Solo consideramos las transacciones que ocurren dentro de los límites del mes actual
+        final ingresosDeLaSemana = perfil.cnIngresos
+            .where(
+              (i) =>
+                  i.fecha.isAfter(
+                    weekStart.subtract(const Duration(seconds: 1)),
+                  ) &&
+                  i.fecha.isBefore(weekEnd.add(const Duration(seconds: 1))) &&
+                  i.fecha.month == now.month &&
+                  i.fecha.year ==
+                      now.year, // Asegurar que está en el mes actual
+            )
+            .fold(0.0, (sum, i) => sum + i.monto);
+
+        final gastosDeLaSemana = perfil.cnGastos
+            .where(
+              (g) =>
+                  g.fecha.isAfter(
+                    weekStart.subtract(const Duration(seconds: 1)),
+                  ) &&
+                  g.fecha.isBefore(weekEnd.add(const Duration(seconds: 1))) &&
+                  g.fecha.month == now.month &&
+                  g.fecha.year ==
+                      now.year, // Asegurar que está en el mes actual
+            )
+            .fold(0.0, (sum, g) => sum + g.monto);
+
+        final balanceSemanal = ingresosDeLaSemana - gastosDeLaSemana;
+        weeklyBalances[i] =
+            balanceSemanal; // Usamos 'i' como índice de la semana (0, 1, 2, 3...)
+      }
+
+      // 2. Acumular y rellenar los datos según la lógica requerida
+      final List<FlSpot> spots = [];
+      double currentBalance = 0;
+
+      for (int i = 0; i < weeksInMonthStarts.length; i++) {
+        if (weeklyBalances.containsKey(i)) {
+          currentBalance += weeklyBalances[i]!;
+        }
+        spots.add(
+          FlSpot(i.toDouble(), currentBalance),
+        ); // X-axis index 0, 1, 2, 3... for weeks
+      }
+      return spots;
     }
     // Default o caso no manejado
     return [];

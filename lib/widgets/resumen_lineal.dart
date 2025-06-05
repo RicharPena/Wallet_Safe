@@ -23,8 +23,21 @@ class ResumenLineChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (lineBarsData.isEmpty ||
-        lineBarsData.every((bar) => bar.spots.isEmpty)) {
+    // Verificar si lineBarsData está vacío, o si todas las barras están vacías,
+    // o si todas las barras solo contienen un punto (0,0) o solo ceros.
+    bool noDataToShow =
+        lineBarsData.isEmpty ||
+        lineBarsData.every((bar) => bar.spots.isEmpty) ||
+        lineBarsData.every(
+          (bar) =>
+              bar.spots.length == 1 &&
+              bar.spots.first.x == 0 &&
+              bar.spots.first.y == 0,
+        ) ||
+        // Condición adicional para manejar múltiples puntos, todos en cero
+        lineBarsData.every((bar) => bar.spots.every((spot) => spot.y == 0));
+
+    if (noDataToShow) {
       return const Center(
         child: Text("No hay datos para mostrar en el gráfico"),
       );

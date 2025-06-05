@@ -3,6 +3,7 @@ import 'package:wallet_safe/models/perfil.dart';
 import 'package:wallet_safe/widgets/gastos_chart.dart';
 import 'package:wallet_safe/widgets/ingresos_chart.dart';
 import 'package:wallet_safe/services/chart_service.dart';
+import 'package:wallet_safe/widgets/recomendations_dialog.dart';
 
 class EstadisticasTab extends StatefulWidget {
   final Perfil perfil;
@@ -14,7 +15,7 @@ class EstadisticasTab extends StatefulWidget {
 }
 
 class _EstadisticasTabState extends State<EstadisticasTab> {
-  DateRange _rangoSeleccionado = DateRange.mensual;
+  DateRange _rangoSeleccionado = DateRange.diario;
 
   @override
   Widget build(BuildContext context) {
@@ -105,6 +106,29 @@ class _EstadisticasTabState extends State<EstadisticasTab> {
               child: GastosChart(
                 gastos: widget.perfil.cnGastos,
                 rango: _rangoSeleccionado,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Align(
+              alignment: Alignment.center,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  // SIMPLEMENTE LLAMAR AL MÉTODO ESTÁTICO DEL NUEVO DIÁLOGO
+                  FinancialInsightDialog.show(context, widget.perfil);
+                },
+                icon: const Icon(Icons.info_outline),
+                label: const Text("Ver Nivel Financiero"),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blueAccent,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
               ),
             ),
           ],

@@ -3,7 +3,7 @@ class Ingreso {
   final double monto;
   final DateTime fecha;
   final String descripcion;
-  // final Categoria categoria; // Lo incluiremos más adelante
+  final String categoria; // Pendiente por cambiar y debatir
   final String tipo;
   final bool automatico;
 
@@ -12,7 +12,7 @@ class Ingreso {
     required this.monto,
     required this.fecha,
     required this.descripcion,
-    // required this.categoria,
+    required this.categoria,
     required this.tipo,
     required this.automatico,
   });
@@ -31,7 +31,7 @@ class Ingreso {
       monto: monto,
       fecha: DateTime.now(),
       descripcion: descripcion,
-      // categoria: categoria,
+      categoria: categoria,
       tipo: tipo,
       automatico: automatico,
     );
@@ -47,7 +47,7 @@ class Ingreso {
       'monto': monto,
       'fecha': fecha.toIso8601String(),
       'descripcion': descripcion,
-      // 'categoria': categoria.nombre,
+      'categoria': categoria,
       'tipo': tipo,
       'automatico': automatico,
     };

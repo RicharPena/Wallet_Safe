@@ -6,9 +6,8 @@ import 'package:wallet_safe/models/cuenta.dart';
 class CuentaService {
   //final String baseUrl = 'http://10.0.2.2/proyecto_wallet_safe/controlador/broker.php'; // Para Emulador Android
   final String baseUrl =
-      'http://172.16.17.144/proyecto_wallet_safe/controlador/broker.php'; // Para celular físico (cambiar IP)
+      'http://192.168.1.63/proyecto_wallet_safe/controlador/broker.php'; // Para celular físico (cambiar IP)
   //final String baseUrl = 'http://localhost/proyecto_wallet_safe/controlador/broker.php'; // Para cargar en página web
-  //prueba commit
 
   //MÉTODO PARA REGISTRAR
   Future<Map<String, dynamic>> registrar(Map<String, dynamic> datos) async {

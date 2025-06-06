@@ -66,7 +66,7 @@ class GastosTabController {
         automatico: esAutomatico,
       ),
     );
-    perfil.presupuestoFamiliar -= monto;
+    perfil.balance -= monto;
   }
 
   void reset() {

@@ -169,8 +169,7 @@ class _GastosTabState extends State<GastosTab> {
                         0.0;
                     if (monto > 0) {
                       setState(() {
-                        (controller.perfil as Titular).presupuestoFamiliar -=
-                            monto;
+                        (controller.perfil as Titular).balance -= monto;
                       });
                       eliminarPresupuestoController.clear();
                       ScaffoldMessenger.of(context).showSnackBar(

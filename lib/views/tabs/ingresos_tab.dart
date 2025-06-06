@@ -113,9 +113,7 @@ class _IngresosTabState extends State<IngresosTab> {
     // Asumo que el balance del perfil se mantiene actualizado en el modelo.
     // *** CAMBIO: Usar el balance del perfil. Asumo que perfil.balance está disponible. ***
     final double balanceActual =
-        widget
-            .perfil
-            .presupuestoFamiliar; // O el balance que quieras mostrar aquí
+        widget.perfil.balance; // O el balance que quieras mostrar aquí
 
     return Scaffold(
       appBar: AppBar(

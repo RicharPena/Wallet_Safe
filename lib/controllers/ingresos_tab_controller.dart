@@ -96,7 +96,7 @@ class IngresosTabController {
     // de la lógica anterior donde los ingresos directamente sumaban al presupuesto familiar.
     // Será importante reevaluar esto cuando implementemos la lógica de presupuesto completo.
     // Por ahora, la dejaré pero marcada como algo a revisar.
-    perfil.presupuestoFamiliar += monto;
+    perfil.balance += monto;
   }
 
   void reset() {

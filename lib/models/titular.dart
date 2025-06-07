@@ -4,6 +4,14 @@ import 'perfil.dart';
 import 'ingresos.dart';
 import 'familia.dart';
 
+// Contador estático para generar IDs únicos temporales
+// En una aplicación real, esto lo gestionaría el backend/base de datos.
+int _nextPresupuestoId = 0;
+int _getNextPresupuestoId() {
+  _nextPresupuestoId++;
+  return _nextPresupuestoId;
+}
+
 class Titular extends Perfil {
   Titular({
     required super.id,
@@ -37,15 +45,16 @@ class Titular extends Perfil {
     }
 
     // Generar un ID simple para el presupuesto familiar (esto cambiará con el backend)
-    int presupuestoFamiliarId = DateTime.now().millisecondsSinceEpoch;
+    int presupuestoFamiliarId = _getNextPresupuestoId();
 
-    // Crear el presupuesto familiar
+    //Crea el presupuesto familiar
     PresupuestoFamiliar nuevoPresupuestoFamiliar = PresupuestoFamiliar(
       id: presupuestoFamiliarId,
       montoAsignado: monto,
       categoria: categoria,
       idPerfilFamiliar: familiar.id,
       idTitular: id,
+      distribuido: false, // Por defecto, no distribuido al crearse
     );
 
     // Asignar el presupuesto a la familia

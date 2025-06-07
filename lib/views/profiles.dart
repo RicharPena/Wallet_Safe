@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wallet_safe/models/cuenta.dart';
 import 'package:wallet_safe/models/perfil.dart';
 import 'package:wallet_safe/views/homePage.dart';
@@ -53,7 +54,9 @@ class _ProfileViewsState extends State<ProfileViews> {
           context,
           MaterialPageRoute(
             builder:
-                (context) => HomePage(cuenta: widget.cuenta, perfil: perfil),
+                (context) => ProviderScope(
+                  child: HomePage(cuenta: widget.cuenta, perfil: perfil),
+                ),
           ),
         );
         ScaffoldMessenger.of(context).showSnackBar(

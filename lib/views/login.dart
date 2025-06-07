@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart'; // ¡Importa Riverpod!
 import 'package:wallet_safe/models/cuenta.dart';
 import 'package:wallet_safe/views/profiles.dart';
 import 'package:wallet_safe/views/register.dart';
@@ -25,9 +26,16 @@ class _LoginViewState extends State<LoginView> {
       final cuenta = await Cuenta.iniciarSesion(correo, contrasena);
 
       if (cuenta != null) {
+        // *** CAMBIO CLAVE AQUÍ: Envolver ProfileViews con ProviderScope ***
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => ProfileViews(cuenta: cuenta)),
+          MaterialPageRoute(
+            builder:
+                (context) => ProviderScope(
+                  // Aquí se introduce el ProviderScope
+                  child: ProfileViews(cuenta: cuenta),
+                ),
+          ),
         );
       } else {
         _mostrarError('Correo o contraseña incorrectos');

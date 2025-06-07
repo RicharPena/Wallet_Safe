@@ -5,6 +5,7 @@ class PresupuestoFamiliar {
   final int
   idPerfilFamiliar; // El ID del perfil tipo Familia al que se le asigna
   final int idTitular; // El ID del perfil Titular que asignó este presupuesto
+  bool distribuido; // Para saber si el usuario del perfíl ya lo ha subdividido
 
   PresupuestoFamiliar({
     required this.id,
@@ -12,6 +13,7 @@ class PresupuestoFamiliar {
     required this.categoria,
     required this.idPerfilFamiliar,
     required this.idTitular,
+    this.distribuido = false,
   });
 
   // Método para actualizar el monto del presupuesto familiar

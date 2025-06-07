@@ -3,12 +3,14 @@ class PresupuestoPersonal {
   double montoAsignado;
   final String categoria;
   final int perfilId; // El ID del perfil al que se le asigna este presupuesto
+  final int idPresupuestoFamiliarOrigen;
 
   PresupuestoPersonal({
     required this.id,
     required this.montoAsignado,
     required this.categoria,
     required this.perfilId,
+    required this.idPresupuestoFamiliarOrigen,
   });
 
   // Método para actualizar el monto del presupuesto

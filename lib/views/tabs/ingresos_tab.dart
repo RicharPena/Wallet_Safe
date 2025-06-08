@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // Para FilteringTextInputFormatter
+import 'package:flutter/services.dart';
 import 'package:wallet_safe/controllers/ingresos_tab_controller.dart';
 import 'package:wallet_safe/models/cuenta.dart';
 import 'package:wallet_safe/models/perfil.dart';
 import 'package:wallet_safe/models/titular.dart';
+import 'package:wallet_safe/models/familia.dart'; // Asegúrate de importar Familia
 
 class IngresosTab extends StatefulWidget {
   final Cuenta cuenta;
@@ -22,17 +23,6 @@ class _IngresosTabState extends State<IngresosTab> {
 
   late final IngresosTabController controller;
 
-  final TextEditingController montoPresupuestoPersonalController =
-      TextEditingController();
-  final TextEditingController montoPresupuestoFamiliarController =
-      TextEditingController();
-
-  // *** CAMBIO: Variables de estado para las categorías seleccionadas, una por cada Dropdown
-  // Se inicializan a null para que el Dropdown muestre el hint text si no hay selección.
-  String? categoriaPresupuestoPersonalSeleccionada;
-  String? categoriaPresupuestoFamiliarSeleccionada;
-  String? perfilFamiliarSeleccionado;
-
   @override
   void initState() {
     super.initState();
@@ -40,29 +30,27 @@ class _IngresosTabState extends State<IngresosTab> {
       cuenta: widget.cuenta,
       perfil: widget.perfil,
     );
-    // No necesitamos inicializar aqui la categoriaIngresoSeleccionada,
-    // el controller ya lo hace en su constructor.
-    // Solo inicializamos las del presupuesto si es necesario que tengan un valor por defecto.
-    // Por ahora, las dejamos en null para que el validador actúe.
+    controller.addListener(_onControllerOrProfileChange);
+  }
+
+  void _onControllerOrProfileChange() {
+    setState(() {});
   }
 
   @override
   void dispose() {
-    montoPresupuestoPersonalController.dispose();
-    montoPresupuestoFamiliarController.dispose();
-    controller
-        .dispose(); // Asegúrate de que tu controller también dispose sus TextEditingControllers
+    controller.removeListener(_onControllerOrProfileChange);
+    controller.dispose();
     super.dispose();
   }
 
-  // Helper para crear los contenedores de módulo con estilo
   Widget _buildModuleContainer({
     required String title,
     required IconData icon,
     required Color color,
     required Widget child,
     EdgeInsets? padding,
-    List<Widget>? actions, // Opcional para botones o acciones
+    List<Widget>? actions,
   }) {
     return Card(
       elevation: 6,
@@ -70,7 +58,7 @@ class _IngresosTabState extends State<IngresosTab> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       child: Container(
         decoration: BoxDecoration(
-          color: color.withOpacity(0.08), // Color más suave para el fondo
+          color: color.withOpacity(0.08),
           borderRadius: BorderRadius.circular(15),
           border: Border.all(color: color.withOpacity(0.3), width: 1.5),
         ),
@@ -107,18 +95,12 @@ class _IngresosTabState extends State<IngresosTab> {
 
   @override
   Widget build(BuildContext context) {
-    // Escuchar cambios en el balance para actualizar la UI
-    // Esto requiere que `Perfil` sea un `ChangeNotifier` o que use un state management como Provider/Riverpod
-    // Por ahora, leeremos el balance directamente o con un setState si es un valor interno.
-    // Asumo que el balance del perfil se mantiene actualizado en el modelo.
-    // *** CAMBIO: Usar el balance del perfil. Asumo que perfil.balance está disponible. ***
-    final double balanceActual =
-        widget.perfil.balance; // O el balance que quieras mostrar aquí
+    final double balanceActual = widget.perfil.balance;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Gestión de Dinero'),
-        backgroundColor: Colors.indigo, // Nuevo color para la AppBar
+        backgroundColor: Colors.indigo,
         foregroundColor: Colors.white,
         elevation: 4,
       ),
@@ -127,7 +109,6 @@ class _IngresosTabState extends State<IngresosTab> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // --- Dinero Disponible ---
             Align(
               alignment: Alignment.center,
               child: Padding(
@@ -203,9 +184,7 @@ class _IngresosTabState extends State<IngresosTab> {
                         prefixIcon: Icon(Icons.category),
                         border: OutlineInputBorder(),
                       ),
-                      // *** CAMBIO: Usar controller.categoriaIngresoSeleccionada ***
                       value: controller.categoriaIngresoSeleccionada,
-                      // *** CAMBIO: Usar categoriasIngresosPersonales del controller ***
                       items:
                           controller.categoriasIngresosPersonales.map((
                             categoria,
@@ -217,7 +196,6 @@ class _IngresosTabState extends State<IngresosTab> {
                           }).toList(),
                       onChanged: (value) {
                         setState(() {
-                          // *** CAMBIO: Actualizar controller.categoriaIngresoSeleccionada ***
                           controller.categoriaIngresoSeleccionada = value;
                         });
                       },
@@ -234,9 +212,7 @@ class _IngresosTabState extends State<IngresosTab> {
                       activeColor: Colors.green,
                       value: controller.esAutomatico,
                       onChanged: (value) {
-                        setState(() {
-                          controller.esAutomatico = value;
-                        });
+                        controller.setEsAutomatico(value);
                       },
                     ),
                     if (controller.esAutomatico) ...[
@@ -256,9 +232,7 @@ class _IngresosTabState extends State<IngresosTab> {
                               );
                             }).toList(),
                         onChanged: (value) {
-                          setState(() {
-                            controller.tipoIngreso = value ?? 'Fijo';
-                          });
+                          controller.setTipoIngreso(value ?? 'Fijo');
                         },
                       ),
                     ],
@@ -269,19 +243,26 @@ class _IngresosTabState extends State<IngresosTab> {
                         onPressed: () {
                           if (_formKeyIngresoPersonal.currentState!
                               .validate()) {
-                            controller.guardarIngreso();
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Ingreso personal guardado correctamente',
+                            try {
+                              controller.guardarIngreso();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Ingreso personal guardado correctamente',
+                                  ),
+                                  backgroundColor: Colors.green,
                                 ),
-                                backgroundColor: Colors.green,
-                              ),
-                            );
-                            _formKeyIngresoPersonal.currentState!.reset();
-                            setState(() {
-                              controller.reset();
-                            });
+                              );
+                            } catch (e) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Error al guardar ingreso: ${e.toString()}',
+                                  ),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
                           }
                         },
                         icon: const Icon(Icons.add_circle_outline),
@@ -327,7 +308,8 @@ class _IngresosTabState extends State<IngresosTab> {
                     child: Column(
                       children: [
                         TextFormField(
-                          controller: montoPresupuestoPersonalController,
+                          controller:
+                              controller.montoPresupuestoPersonalController,
                           keyboardType: TextInputType.number,
                           inputFormatters: [
                             FilteringTextInputFormatter.allow(
@@ -350,7 +332,6 @@ class _IngresosTabState extends State<IngresosTab> {
                             if (monto == null || monto <= 0) {
                               return 'Monto inválido';
                             }
-                            // *** CAMBIO: Usar el balance actual del perfil para la validación ***
                             if (monto > balanceActual) {
                               return 'Monto supera tu saldo disponible';
                             }
@@ -364,9 +345,9 @@ class _IngresosTabState extends State<IngresosTab> {
                             prefixIcon: Icon(Icons.category),
                             border: OutlineInputBorder(),
                           ),
-                          // *** CAMBIO: Usar la variable de estado local categoriaPresupuestoPersonalSeleccionada ***
-                          value: categoriaPresupuestoPersonalSeleccionada,
-                          // *** CAMBIO: Usar categoriasPresupuestoPersonal del controller ***
+                          value:
+                              controller
+                                  .categoriaPresupuestoPersonalSeleccionada,
                           items:
                               controller.categoriasPresupuestoPersonal.map((
                                 categoria,
@@ -378,8 +359,9 @@ class _IngresosTabState extends State<IngresosTab> {
                               }).toList(),
                           onChanged: (value) {
                             setState(() {
-                              // *** CAMBIO: Actualizar la variable de estado local ***
-                              categoriaPresupuestoPersonalSeleccionada = value;
+                              controller
+                                      .categoriaPresupuestoPersonalSeleccionada =
+                                  value;
                             });
                           },
                           validator: (value) {
@@ -396,25 +378,26 @@ class _IngresosTabState extends State<IngresosTab> {
                             onPressed: () {
                               if (_formKeyPresupuestoPersonal.currentState!
                                   .validate()) {
-                                final monto = double.parse(
-                                  montoPresupuestoPersonalController.text
-                                      .replaceAll(',', '.'),
-                                );
-                                // Lógica futura: Guardar presupuesto personal
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      'Presupuesto personal de \$${monto.toStringAsFixed(2)} para ${categoriaPresupuestoPersonalSeleccionada!} creado (funcionalidad futura)',
+                                try {
+                                  controller.crearPresupuestoPersonal();
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Presupuesto personal de \$${controller.montoPresupuestoPersonalController.text} para ${controller.categoriaPresupuestoPersonalSeleccionada!} creado.',
+                                      ),
+                                      backgroundColor: Colors.indigo,
                                     ),
-                                    backgroundColor: Colors.indigo,
-                                  ),
-                                );
-                                montoPresupuestoPersonalController.clear();
-                                setState(() {
-                                  // Opcional: Resetear la selección del dropdown a null o al primero.
-                                  categoriaPresupuestoPersonalSeleccionada =
-                                      null;
-                                });
+                                  );
+                                } catch (e) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Error al crear presupuesto personal: ${e.toString()}',
+                                      ),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
                               }
                             },
                             icon: const Icon(Icons.add_task),
@@ -458,21 +441,30 @@ class _IngresosTabState extends State<IngresosTab> {
                               prefixIcon: Icon(Icons.group),
                               border: OutlineInputBorder(),
                             ),
-                            value: perfilFamiliarSeleccionado,
+                            value: controller.perfilFamiliarSeleccionadoNombre,
                             items:
-                                widget.cuenta.familiares.map((f) {
-                                  return DropdownMenuItem<String>(
-                                    value: f.nombre,
-                                    child: Text(f.nombre),
-                                  );
-                                }).toList(),
+                                widget.cuenta.familiares
+                                    .whereType<Familia>()
+                                    .map((f) {
+                                      return DropdownMenuItem<String>(
+                                        value: f.nombre,
+                                        child: Text(f.nombre),
+                                      );
+                                    })
+                                    .toList(),
                             onChanged: (value) {
                               setState(() {
-                                perfilFamiliarSeleccionado = value;
+                                controller.perfilFamiliarSeleccionadoNombre =
+                                    value;
                               });
                             },
                             validator: (value) {
-                              if (widget.cuenta.familiares.isNotEmpty &&
+                              // Solo validamos si hay familiares registrados para asignar.
+                              // Si widget.cuenta.familiares.whereType<Familia>().isNotEmpty
+                              // entonces se espera una selección.
+                              if (widget.cuenta.familiares
+                                      .whereType<Familia>()
+                                      .isNotEmpty &&
                                   value == null) {
                                 return 'Selecciona un perfil familiar';
                               }
@@ -481,7 +473,8 @@ class _IngresosTabState extends State<IngresosTab> {
                           ),
                           const SizedBox(height: 16),
                           TextFormField(
-                            controller: montoPresupuestoFamiliarController,
+                            controller:
+                                controller.montoPresupuestoFamiliarController,
                             keyboardType: TextInputType.number,
                             inputFormatters: [
                               FilteringTextInputFormatter.allow(
@@ -504,9 +497,7 @@ class _IngresosTabState extends State<IngresosTab> {
                               if (monto == null || monto <= 0) {
                                 return 'Monto inválido';
                               }
-                              // *** CAMBIO: Usar el balance actual del perfil para la validación ***
                               if (monto > balanceActual) {
-                                // Aquí usarías el balance del titular
                                 return 'Monto supera tu saldo disponible';
                               }
                               return null;
@@ -519,9 +510,9 @@ class _IngresosTabState extends State<IngresosTab> {
                               prefixIcon: Icon(Icons.category),
                               border: OutlineInputBorder(),
                             ),
-                            // *** CAMBIO: Usar la variable de estado local categoriaPresupuestoFamiliarSeleccionada ***
-                            value: categoriaPresupuestoFamiliarSeleccionada,
-                            // *** CAMBIO: Usar categoriasPresupuestoFamiliar del controller ***
+                            value:
+                                controller
+                                    .categoriaPresupuestoFamiliarSeleccionada,
                             items:
                                 controller.categoriasPresupuestoFamiliar.map((
                                   categoria,
@@ -533,8 +524,8 @@ class _IngresosTabState extends State<IngresosTab> {
                                 }).toList(),
                             onChanged: (value) {
                               setState(() {
-                                // *** CAMBIO: Actualizar la variable de estado local ***
-                                categoriaPresupuestoFamiliarSeleccionada =
+                                controller
+                                        .categoriaPresupuestoFamiliarSeleccionada =
                                     value;
                               });
                             },
@@ -552,38 +543,26 @@ class _IngresosTabState extends State<IngresosTab> {
                               onPressed: () {
                                 if (_formKeyPresupuestoFamiliar.currentState!
                                     .validate()) {
-                                  if (perfilFamiliarSeleccionado == null) {
+                                  try {
+                                    controller.asignarPresupuestoFamiliar();
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
+                                      SnackBar(
                                         content: Text(
-                                          'Por favor, selecciona un perfil familiar.',
+                                          'Presupuesto de \$${controller.montoPresupuestoFamiliarController.text} para ${controller.perfilFamiliarSeleccionadoNombre!} en categoría ${controller.categoriaPresupuestoFamiliarSeleccionada!} asignado.',
+                                        ),
+                                        backgroundColor: Colors.orange,
+                                      ),
+                                    );
+                                  } catch (e) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Error al asignar presupuesto: ${e.toString()}',
                                         ),
                                         backgroundColor: Colors.red,
                                       ),
                                     );
-                                    return;
                                   }
-                                  final monto = double.parse(
-                                    montoPresupuestoFamiliarController.text
-                                        .replaceAll(',', '.'),
-                                  );
-                                  // Lógica futura: Asignar presupuesto familiar
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'Presupuesto de \$${monto.toStringAsFixed(2)} para ${perfilFamiliarSeleccionado!} en categoría ${categoriaPresupuestoFamiliarSeleccionada!} asignado (funcionalidad futura)',
-                                      ),
-                                      backgroundColor: Colors.orange,
-                                    ),
-                                  );
-                                  montoPresupuestoFamiliarController.clear();
-                                  setState(() {
-                                    perfilFamiliarSeleccionado =
-                                        null; // Resetear selección
-                                    // Opcional: Resetear la selección del dropdown a null o al primero.
-                                    categoriaPresupuestoFamiliarSeleccionada =
-                                        null;
-                                  });
                                 }
                               },
                               icon: const Icon(Icons.send_to_mobile),
@@ -607,7 +586,7 @@ class _IngresosTabState extends State<IngresosTab> {
                         ],
                       ),
                     ),
-                  ], // Fin del if (widget.perfil is Titular) para Presupuesto Familiar
+                  ],
                 ],
               ),
             ),

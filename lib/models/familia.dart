@@ -15,9 +15,13 @@ class Familia extends Perfil {
   });
 
   /// Solo puede agregar sus propios ingresos
+  @override
   void agregarIngreso(Ingreso ingreso) {
     cnIngresos.add(ingreso);
     balance += ingreso.monto;
+    print(
+      'Ingreso de $ingreso.monto añadido a Titular $nombre. Nuevo balance: $balance',
+    );
   }
 
   // *** Implementación de agregarPresupuestoPersonal para Familia ***

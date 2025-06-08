@@ -3,14 +3,14 @@ class PresupuestoPersonal {
   double montoAsignado;
   final String categoria;
   final int perfilId; // El ID del perfil al que se le asigna este presupuesto
-  final int idPresupuestoFamiliarOrigen;
+  final int? idPresupuestoFamiliarOrigen;
 
   PresupuestoPersonal({
     required this.id,
     required this.montoAsignado,
     required this.categoria,
     required this.perfilId,
-    required this.idPresupuestoFamiliarOrigen,
+    this.idPresupuestoFamiliarOrigen,
   });
 
   // Método para actualizar el monto del presupuesto
@@ -20,5 +20,16 @@ class PresupuestoPersonal {
     } else {
       throw ArgumentError('El monto asignado no puede ser negativo.');
     }
+  }
+
+  // Método auxiliar (sin utilidad por ahora)
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'montoAsignado': montoAsignado,
+      'categoria': categoria,
+      'perfilId': perfilId,
+      'idPresupuestoFamiliarOrigen': idPresupuestoFamiliarOrigen,
+    };
   }
 }

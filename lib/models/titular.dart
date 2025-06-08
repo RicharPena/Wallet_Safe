@@ -24,9 +24,13 @@ class Titular extends Perfil {
   });
 
   /// Agrega un ingreso al titular y actualiza el balance
+  @override
   void agregarIngreso(Ingreso ingreso) {
     cnIngresos.add(ingreso);
     balance += ingreso.monto;
+    print(
+      'Ingreso de $ingreso.monto añadido a Titular $nombre. Nuevo balance: $balance',
+    );
   }
 
   /// Asigna una cantidad de dinero a un perfil tipo Familia

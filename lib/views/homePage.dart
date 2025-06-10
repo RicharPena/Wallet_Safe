@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wallet_safe/models/cuenta.dart';
 import 'package:wallet_safe/models/perfil.dart';
-import 'package:wallet_safe/models/familia.dart'; // Importa Familia para el check de tipo
-import 'package:wallet_safe/controllers/familia_viewmodel.dart'; // Importa el ViewModel (ajusta la ruta si está en controllers)
-import 'package:wallet_safe/widgets/notificacion_presupuesto.dart'; // Importa el diálogo (ajusta la ruta si lo renombraste)
+import 'package:wallet_safe/models/familia.dart';
+import 'package:wallet_safe/controllers/familia_viewmodel.dart';
+import 'package:wallet_safe/widgets/notificacion_presupuesto.dart';
+import 'package:wallet_safe/providers/app_providers.dart'; // ¡Importa tus nuevos providers!
 
 import 'package:wallet_safe/views/profiles.dart';
 import 'package:wallet_safe/views/tabs/home_tab.dart';
@@ -14,7 +15,6 @@ import 'package:wallet_safe/views/tabs/estadisticas_tab.dart';
 import 'package:wallet_safe/views/tabs/config_tab.dart';
 import 'package:wallet_safe/widgets/barra_inferior.dart';
 
-// Extensión para List para firstWhereOrNull
 extension IterableExtension<T> on Iterable<T> {
   T? firstWhereOrNull(bool Function(T element) test) {
     for (T element in this) {
@@ -25,8 +25,8 @@ extension IterableExtension<T> on Iterable<T> {
 }
 
 class HomePage extends ConsumerStatefulWidget {
-  final Cuenta cuenta;
-  final Perfil perfil;
+  final Cuenta cuenta; // Todavía la recibimos, pero podemos usar el provider.
+  final Perfil perfil; // Todavía la recibimos, pero podemos usar el provider.
 
   HomePage({required this.cuenta, required this.perfil, super.key});
   final _navigatorKeys = List.generate(5, (_) => GlobalKey<NavigatorState>());
@@ -36,49 +36,44 @@ class HomePage extends ConsumerStatefulWidget {
 }
 
 class _HomePageState extends ConsumerState<HomePage> {
-  bool _dialogShownForThisBudget =
-      false; // Flag para asegurar que el diálogo solo se muestre una vez por *este* presupuesto
+  bool _dialogShownForThisBudget = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // SOLO si el perfil actual es de tipo Familia, cargarlo en el ViewModel
-      // y restablecer el flag del diálogo porque es un nuevo ingreso al perfil.
-      if (widget.perfil is Familia) {
+      // Usamos el perfilSeleccionadoProvider para asegurar que estamos cargando el perfil correcto
+      final currentPerfil = ref.read(perfilSeleccionadoProvider);
+      if (currentPerfil is Familia) {
         ref
             .read(familiaViewModelProvider.notifier)
-            .cargarFamilia(widget.perfil as Familia);
-        _dialogShownForThisBudget =
-            false; // Resetear el flag al cargar un nuevo perfil Familia
+            .cargarFamilia(currentPerfil);
+        _dialogShownForThisBudget = false;
       }
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    // Si el perfil actual es de tipo Familia, escuchamos el ViewModel para diálogos.
-    // Si no es Familia (ej. Titular), simplemente ignoramos esta lógica de escucha.
-    if (widget.perfil is Familia) {
-      // Usamos ref.listen fuera del `if` principal para la lógica de escucha, pero dentro de otro `if` para el tipo de perfil.
-      // Esta posición es importante para que el `ref.listen` se registre correctamente.
+    // Observa el perfil activo a través del provider.
+    final Perfil perfilActivo = ref.watch(perfilSeleccionadoProvider);
+
+    // Solo si el perfil actual es de tipo Familia, escuchamos el ViewModel para diálogos.
+    if (perfilActivo is Familia) {
       ref.listen<Familia?>(familiaViewModelProvider, (
         previousFamilia,
         currentFamilia,
       ) {
-        // Solo si el perfil actual es una Familia y hay un presupuesto pendiente,
-        // Y el diálogo aún no se ha mostrado para el *presupuesto específico* actual.
-        // Y el `currentFamilia` del ViewModel coincide con el `widget.perfil` actual
-        // (importante para evitar diálogos de viejas instancias de Familia si el estado cambia).
         if (currentFamilia is Familia &&
-            currentFamilia.id == widget.perfil.id &&
+            currentFamilia.id ==
+                perfilActivo.id && // Compara con el perfil activo del provider
             !_dialogShownForThisBudget) {
           final presupuestoPendiente = currentFamilia.cnPresupuestosFamiliares
               .firstWhereOrNull((pf) => !pf.distribuido);
 
           if (presupuestoPendiente != null) {
-            // Asegúrate de que el diálogo no se muestre si ya hay uno abierto.
             bool isDialogShowing = false;
+            // Verifica si un diálogo ya está abierto (esto es una mejora de robustez)
             Navigator.of(context).popUntil((route) {
               if (route is PopupRoute &&
                   route.settings.name == 'new_budget_dialog') {
@@ -88,27 +83,26 @@ class _HomePageState extends ConsumerState<HomePage> {
             });
 
             if (!isDialogShowing) {
-              _dialogShownForThisBudget =
-                  true; // Marcar que el diálogo se va a mostrar
+              _dialogShownForThisBudget = true;
               showDialog(
                 context: context,
-                barrierDismissible:
-                    false, // El usuario DEBE procesar el presupuesto
+                barrierDismissible: false,
                 routeSettings: const RouteSettings(name: 'new_budget_dialog'),
                 builder: (BuildContext dialogContext) {
-                  return NewFamilyBudgetDialog(
-                    presupuestoFamiliar: presupuestoPendiente,
+                  // Envuelve el NewFamilyBudgetDialog con un ProviderScope
+                  // para asegurar que herede los providers de HomePage
+                  return ProviderScope(
+                    parent: ProviderScope.containerOf(
+                      context,
+                    ), // Opcional pero seguro: hereda del padre
+                    child: NewFamilyBudgetDialog(
+                      presupuestoFamiliar: presupuestoPendiente,
+                    ),
                   );
                 },
               ).then((_) {
-                // Cuando el diálogo se cierra (después de la distribución),
-                // podemos resetear el flag o dejarlo así ya que el presupuesto se marcó como distribuido.
-                // Si el mismo presupuesto se asigna de nuevo (lo cual no debería pasar si se distribuye),
-                // el flag es útil. Por ahora, como el presupuesto se marca como "distribuido",
-                // la lógica de `firstWhereOrull` se encargará de que no se muestre de nuevo.
-                // El flag _dialogShownForThisBudget previene múltiples disparos *mientras* el diálogo está abierto.
                 _dialogShownForThisBudget =
-                    false; // Resetear el flag para futuras interacciones
+                    false; // Resetear el flag al cerrar el diálogo
               });
             }
           }
@@ -123,12 +117,14 @@ class _HomePageState extends ConsumerState<HomePage> {
             cuenta: widget.cuenta,
             perfil: widget.perfil,
             onLogout: () {
+              // Si el logout significa volver al login,
+              // debes asegurarte de que los providers de cuenta/perfil se reinicien.
               Navigator.of(context).pushAndRemoveUntil(
                 MaterialPageRoute(
                   builder:
-                      (_) => ProviderScope(
-                        child: ProfileViews(cuenta: widget.cuenta),
-                      ),
+                      (_) => ProfileViews(
+                        cuenta: widget.cuenta,
+                      ), // Vuelve al LoginView
                 ),
                 (route) => false,
               );

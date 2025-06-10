@@ -1,8 +1,10 @@
+// login_view.dart
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart'; // ¡Importa Riverpod!
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wallet_safe/models/cuenta.dart';
 import 'package:wallet_safe/views/profiles.dart';
 import 'package:wallet_safe/views/register.dart';
+import 'package:wallet_safe/providers/app_providers.dart'; // ¡Importa tus nuevos providers!
 
 class LoginView extends StatefulWidget {
   LoginView({super.key});
@@ -26,14 +28,22 @@ class _LoginViewState extends State<LoginView> {
       final cuenta = await Cuenta.iniciarSesion(correo, contrasena);
 
       if (cuenta != null) {
-        // *** CAMBIO CLAVE AQUÍ: Envolver ProfileViews con ProviderScope ***
+        // Envolver ProfileViews con Consumer para acceder a ref,
+        // Y sobrescribir el cuentaActivaProvider.
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
             builder:
                 (context) => ProviderScope(
-                  // Aquí se introduce el ProviderScope
-                  child: ProfileViews(cuenta: cuenta),
+                  // Nuevo ProviderScope para los overrides
+                  overrides: [
+                    cuentaActivaProvider.overrideWithValue(
+                      cuenta,
+                    ), // <-- Aquí se provee la Cuenta
+                  ],
+                  child: ProfileViews(
+                    cuenta: cuenta,
+                  ), // ProfileViews aún necesita la cuenta, pero ahora se provee a través de Riverpod para sus hijos.
                 ),
           ),
         );

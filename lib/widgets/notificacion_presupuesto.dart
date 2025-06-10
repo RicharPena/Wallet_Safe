@@ -1,7 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/presupuesto_familiar.dart';
-import '../controllers/familia_viewmodel.dart'; // Importa tu ViewModel
+import '../controllers/familia_viewmodel.dart';
+import '../models/familia.dart'; // Necesario para el casting
+import '../providers/app_providers.dart'; // ¡Importa tus nuevos providers!
+
+// Extensión para List para firstWhereOrNull (si no la tienes ya)
+extension ListExtensions<T> on List<T> {
+  T? firstWhereOrNull(bool Function(T element) test) {
+    for (var element in this) {
+      if (test(element)) {
+        return element;
+      }
+    }
+    return null;
+  }
+}
 
 class NewFamilyBudgetDialog extends ConsumerStatefulWidget {
   final PresupuestoFamiliar presupuestoFamiliar;
@@ -19,8 +34,8 @@ class _NewFamilyBudgetDialogState extends ConsumerState<NewFamilyBudgetDialog> {
   double _montoRestante = 0.0;
   final _formKey = GlobalKey<FormState>();
 
-  List<TextEditingController> _montoControllers = [];
-  List<TextEditingController> _categoriaControllers = [];
+  final List<TextEditingController> _montoControllers = [];
+  final List<TextEditingController> _categoriaControllers = [];
 
   final List<String> _categoriasDisponibles = [
     'Comida',
@@ -55,7 +70,10 @@ class _NewFamilyBudgetDialogState extends ConsumerState<NewFamilyBudgetDialog> {
     if (_montoRestante <= 0 && _subdivisiones.isNotEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Ya has distribuido todo el monto disponible.'),
+          content: Text(
+            'Ya has distribuido todo el monto disponible o no hay más monto para subdividir.',
+          ),
+          backgroundColor: Colors.orange,
         ),
       );
       return;
@@ -75,7 +93,15 @@ class _NewFamilyBudgetDialogState extends ConsumerState<NewFamilyBudgetDialog> {
 
   void _removerSubdivision(int index) {
     setState(() {
-      double montoRemovido = _subdivisiones[index]['monto'] as double;
+      double montoRemovido = 0.0;
+      try {
+        montoRemovido = double.parse(
+          _montoControllers[index].text.replaceAll(',', '.'),
+        );
+      } catch (e) {
+        // Si no se puede parsear, asumir 0
+      }
+
       _subdivisiones.removeAt(index);
       _montoControllers[index].dispose();
       _categoriaControllers[index].dispose();
@@ -83,7 +109,7 @@ class _NewFamilyBudgetDialogState extends ConsumerState<NewFamilyBudgetDialog> {
       _categoriaControllers.removeAt(index);
 
       _montoRestante += montoRemovido;
-      _calcularMontoRestante(); // Recalcular al remover
+      _calcularMontoRestante();
     });
   }
 
@@ -91,11 +117,13 @@ class _NewFamilyBudgetDialogState extends ConsumerState<NewFamilyBudgetDialog> {
     double totalIngresado = 0.0;
     for (var i = 0; i < _subdivisiones.length; i++) {
       try {
-        double monto = double.parse(_montoControllers[i].text);
+        double monto = double.parse(
+          _montoControllers[i].text.replaceAll(',', '.'),
+        );
         totalIngresado += monto;
         _subdivisiones[i]['monto'] = monto;
       } catch (e) {
-        // Ignorar si el campo está vacío o no es un número válido por ahora
+        // Si el campo está vacío o no es un número válido, no suma nada.
       }
     }
     setState(() {
@@ -109,12 +137,33 @@ class _NewFamilyBudgetDialogState extends ConsumerState<NewFamilyBudgetDialog> {
       return;
     }
 
+    _calcularMontoRestante();
+
     if (_montoRestante.abs() > 0.01) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'El monto total de las subdivisiones no coincide con el presupuesto original.',
+            'El monto total de las subdivisiones no coincide con el presupuesto original. Asegúrate de distribuir todo el monto.',
           ),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // AHORA OBTENEMOS LA CUENTA Y EL PERFIL (Familia) DESDE LOS PROVIDERS
+    final familiaObjetivo =
+        ref.read(perfilSeleccionadoProvider)
+            as Familia; // Aseguramos que es Familia
+
+    // Validar que la familiaObjetivo sea la misma que la del presupuesto familiar
+    if (familiaObjetivo.id != widget.presupuestoFamiliar.idPerfilFamiliar) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Error: El perfil activo no coincide con el perfil del presupuesto familiar.',
+          ),
+          backgroundColor: Colors.red,
         ),
       );
       return;
@@ -122,19 +171,40 @@ class _NewFamilyBudgetDialogState extends ConsumerState<NewFamilyBudgetDialog> {
 
     final familiaViewModel = ref.read(familiaViewModelProvider.notifier);
 
-    familiaViewModel.procesarPresupuestoFamiliar(
-      widget.presupuestoFamiliar,
-      _subdivisiones,
-    );
+    try {
+      // Como el perfilSeleccionadoProvider ya nos da la instancia correcta de Familia,
+      // el ViewModel ya debería estar escuchando y tener esa instancia.
+      // Ya no es necesario llamar familiaViewModel.cargarFamilia(familiaObjetivo) aquí,
+      // ya que HomePage.initState() y el listener ya se encargan.
+      // Sin embargo, si quieres ser súper explícito y asegurarte, podrías hacerlo:
+      // familiaViewModel.cargarFamilia(familiaObjetivo);
 
-    Navigator.of(context).pop();
+      familiaViewModel.procesarPresupuestoFamiliar(
+        widget.presupuestoFamiliar,
+        _subdivisiones,
+      );
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Presupuesto familiar distribuido exitosamente.'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      Navigator.of(context).pop();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al distribuir presupuesto: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return PopScope(
-      canPop:
-          false, // Evita que el diálogo se cierre al presionar el botón de atrás
+      canPop: false,
       child: AlertDialog(
         title: const Text('¡Nuevo Presupuesto Familiar Asignado!'),
         content: SingleChildScrollView(
@@ -153,13 +223,17 @@ class _NewFamilyBudgetDialogState extends ConsumerState<NewFamilyBudgetDialog> {
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: _montoRestante < 0 ? Colors.red : Colors.green,
+                    color:
+                        _montoRestante < 0
+                            ? Colors.red
+                            : (_montoRestante == 0
+                                ? Colors.green
+                                : Colors.orange),
                   ),
                 ),
                 const Divider(),
                 ..._subdivisiones.asMap().entries.map((entry) {
                   int index = entry.key;
-                  // Map<String, dynamic> sub = entry.value; // No usado directamente aquí
 
                   return Padding(
                     padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -170,6 +244,11 @@ class _NewFamilyBudgetDialogState extends ConsumerState<NewFamilyBudgetDialog> {
                           child: TextFormField(
                             controller: _montoControllers[index],
                             keyboardType: TextInputType.number,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.allow(
+                                RegExp(r'^\d+\.?\d{0,2}'),
+                              ),
+                            ],
                             decoration: const InputDecoration(
                               labelText: 'Monto Personal',
                               border: OutlineInputBorder(),
@@ -178,7 +257,9 @@ class _NewFamilyBudgetDialogState extends ConsumerState<NewFamilyBudgetDialog> {
                               if (value == null || value.isEmpty) {
                                 return 'Ingrese un monto';
                               }
-                              final monto = double.tryParse(value);
+                              final monto = double.tryParse(
+                                value.replaceAll(',', '.'),
+                              );
                               if (monto == null || monto <= 0) {
                                 return 'Monto inválido';
                               }
@@ -208,7 +289,6 @@ class _NewFamilyBudgetDialogState extends ConsumerState<NewFamilyBudgetDialog> {
                                 }).toList(),
                             onChanged: (String? newValue) {
                               setState(() {
-                                // Actualizar el valor en el controlador y también en la lista de subdivisiones
                                 _categoriaControllers[index].text = newValue!;
                                 _subdivisiones[index]['categoria'] = newValue;
                               });
@@ -221,8 +301,7 @@ class _NewFamilyBudgetDialogState extends ConsumerState<NewFamilyBudgetDialog> {
                             },
                           ),
                         ),
-                        if (_subdivisiones.length >
-                            1) // Permitir remover solo si hay más de una subdivisión
+                        if (_subdivisiones.length > 1)
                           IconButton(
                             icon: const Icon(Icons.remove_circle),
                             onPressed: () => _removerSubdivision(index),

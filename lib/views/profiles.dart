@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wallet_safe/models/cuenta.dart';
 import 'package:wallet_safe/models/perfil.dart';
-import 'package:wallet_safe/views/homePage.dart';
+import 'package:wallet_safe/views/homePage.dart'; // ¡Importa tus nuevos providers!
+import '../providers/app_providers.dart';
 
 class ProfileViews extends StatefulWidget {
-  final Cuenta cuenta;
+  final Cuenta cuenta; // Aún la pasamos para mantener la API si es necesario,
+  // pero la usaremos menos directamente en los hijos.
 
   const ProfileViews({required this.cuenta, super.key});
 
@@ -55,7 +57,17 @@ class _ProfileViewsState extends State<ProfileViews> {
           MaterialPageRoute(
             builder:
                 (context) => ProviderScope(
-                  child: HomePage(cuenta: widget.cuenta, perfil: perfil),
+                  // Un nuevo ProviderScope para los overrides
+                  overrides: [
+                    perfilSeleccionadoProvider.overrideWithValue(
+                      perfil,
+                    ), // <-- Aquí se provee el Perfil
+                  ],
+                  child: HomePage(
+                    cuenta: widget.cuenta,
+                    perfil: perfil,
+                  ), // HomePage aún recibe el Perfil y Cuenta
+                  // pero sus hijos pueden acceder por provider.
                 ),
           ),
         );

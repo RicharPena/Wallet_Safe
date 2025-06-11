@@ -1,19 +1,19 @@
-// login_view.dart
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart'; // Importa ConsumerStatefulWidget
 import 'package:wallet_safe/models/cuenta.dart';
 import 'package:wallet_safe/views/profiles.dart';
 import 'package:wallet_safe/views/register.dart';
-import 'package:wallet_safe/providers/app_providers.dart'; // ¡Importa tus nuevos providers!
+import 'package:wallet_safe/providers/app_providers.dart'; // ¡Importa tus providers!
 
-class LoginView extends StatefulWidget {
-  LoginView({super.key});
+// LoginView debe ser un ConsumerStatefulWidget para acceder a ref en _login
+class LoginView extends ConsumerStatefulWidget {
+  const LoginView({super.key});
 
   @override
-  State<LoginView> createState() => _LoginViewState();
+  ConsumerState<LoginView> createState() => _LoginViewState();
 }
 
-class _LoginViewState extends State<LoginView> {
+class _LoginViewState extends ConsumerState<LoginView> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
 
@@ -28,30 +28,22 @@ class _LoginViewState extends State<LoginView> {
       final cuenta = await Cuenta.iniciarSesion(correo, contrasena);
 
       if (cuenta != null) {
-        // Envolver ProfileViews con Consumer para acceder a ref,
-        // Y sobrescribir el cuentaActivaProvider.
+        // Usa ref.read para obtener el notifier y actualizar la Cuenta activa globalmente.
+        // Esto sobrescribe el estado del provider en el ProviderScope raíz.
+        ref.read(cuentaActivaProvider.notifier).setCuenta(cuenta);
+
+        // Navega a ProfileViews sin un ProviderScope, ya que el estado se maneja globalmente.
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(
-            builder:
-                (context) => ProviderScope(
-                  // Nuevo ProviderScope para los overrides
-                  overrides: [
-                    cuentaActivaProvider.overrideWithValue(
-                      cuenta,
-                    ), // <-- Aquí se provee la Cuenta
-                  ],
-                  child: ProfileViews(
-                    cuenta: cuenta,
-                  ), // ProfileViews aún necesita la cuenta, pero ahora se provee a través de Riverpod para sus hijos.
-                ),
-          ),
+          MaterialPageRoute(builder: (context) => const ProfileViews()),
         );
       } else {
         _mostrarError('Correo o contraseña incorrectos');
       }
     } catch (e) {
-      _mostrarError('Fallo en la conexión con el servidor');
+      _mostrarError(
+        'Fallo en la conexión con el servidor: $e',
+      ); // Mostrar el error para depurar
     } finally {
       setState(() => _isLoading = false);
     }
@@ -68,6 +60,13 @@ class _LoginViewState extends State<LoginView> {
   }
 
   @override
+  void dispose() {
+    emailController.dispose();
+    passwordController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color.fromARGB(255, 255, 255, 255),
@@ -76,12 +75,13 @@ class _LoginViewState extends State<LoginView> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(
+            const Text(
+              // Añadido 'const' para optimización
               'Wallet Safe',
               style: TextStyle(
                 fontSize: 32,
                 fontWeight: FontWeight.bold,
-                color: const Color.fromARGB(255, 108, 238, 47),
+                color: Color.fromARGB(255, 108, 238, 47),
               ),
             ),
             const SizedBox(height: 60),
@@ -106,12 +106,13 @@ class _LoginViewState extends State<LoginView> {
               onPressed: _isLoading ? null : _login,
               child:
                   _isLoading
-                      ? CircularProgressIndicator(color: Colors.white)
+                      ? const CircularProgressIndicator(color: Colors.white)
                       : const Text('Iniciar Sesión'),
             ),
             const SizedBox(height: 10),
-            Row(
-              children: const [
+            const Row(
+              // Añadido 'const' para optimización
+              children: [
                 Expanded(child: Divider(thickness: 1)),
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: 25),

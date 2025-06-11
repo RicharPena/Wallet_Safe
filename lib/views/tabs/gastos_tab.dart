@@ -1,37 +1,40 @@
 import 'package:flutter/material.dart';
-import 'package:wallet_safe/controllers/gastos_tab_controller.dart';
-import 'package:wallet_safe/models/cuenta.dart';
-import 'package:wallet_safe/models/perfil.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart'; // Importar Riverpod
 import 'package:wallet_safe/models/titular.dart';
+import 'package:wallet_safe/providers/app_providers.dart'; // Importar app_providers para acceder a los providers
 
-class GastosTab extends StatefulWidget {
-  final Cuenta cuenta;
-  final Perfil perfil;
-
-  const GastosTab({required this.cuenta, required this.perfil, super.key});
+// Cambiamos a ConsumerStatefulWidget para acceder a Riverpod
+class GastosTab extends ConsumerStatefulWidget {
+  const GastosTab({super.key}); // Eliminamos los parámetros cuenta y perfil
 
   @override
-  State<GastosTab> createState() => _GastosTabState();
+  ConsumerState<GastosTab> createState() => _GastosTabState();
 }
 
-class _GastosTabState extends State<GastosTab> {
+// Cambiamos a ConsumerState
+class _GastosTabState extends ConsumerState<GastosTab> {
   final _formKey = GlobalKey<FormState>();
-  late final GastosTabController controller;
+  // Ya no necesitamos 'late final GastosTabController controller;' aquí.
+  // Lo obtendremos directamente del ref en el build método.
 
   final TextEditingController eliminarPresupuestoController =
       TextEditingController();
 
   @override
-  void initState() {
-    super.initState();
-    controller = GastosTabController(
-      cuenta: widget.cuenta,
-      perfil: widget.perfil,
-    );
+  void dispose() {
+    eliminarPresupuestoController.dispose();
+    // No necesitamos llamar a controller.dispose() aquí porque Riverpod
+    // se encarga de disponer del ChangeNotifier cuando el provider se invalida
+    // (gracias a autoDispose).
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    // Observamos el controller utilizando ref.watch.
+    // Cuando el controller notifica cambios, este widget se reconstruirá.
+    final controller = ref.watch(gastosTabControllerProvider);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Agregar Gasto'),
@@ -69,6 +72,7 @@ class _GastosTabState extends State<GastosTab> {
                   labelText: 'Categoría',
                   prefixIcon: Icon(Icons.category),
                 ),
+                // Aquí usamos el setter para actualizar el valor en el controller
                 value: controller.categoriaSeleccionada,
                 items:
                     controller.categorias
@@ -80,19 +84,20 @@ class _GastosTabState extends State<GastosTab> {
                         )
                         .toList(),
                 onChanged: (value) {
-                  setState(() {
-                    controller.categoriaSeleccionada = value;
-                  });
+                  // Llama al setter del controller
+                  controller.setCategoriaSeleccionada(value);
+                  // setState ya no es necesario para esto, notifyListeners() en el controller lo manejará
                 },
               ),
               const SizedBox(height: 16),
               SwitchListTile(
                 title: const Text('¿Gasto automático?'),
+                // Aquí usamos el setter para actualizar el valor en el controller
                 value: controller.esAutomatico,
                 onChanged: (value) {
-                  setState(() {
-                    controller.esAutomatico = value;
-                  });
+                  // Llama al setter del controller
+                  controller.setEsAutomatico(value);
+                  // setState ya no es necesario para esto
                 },
               ),
               if (controller.esAutomatico) ...[
@@ -102,6 +107,7 @@ class _GastosTabState extends State<GastosTab> {
                     labelText: 'Tipo de gasto',
                     prefixIcon: Icon(Icons.repeat),
                   ),
+                  // Aquí usamos el setter para actualizar el valor en el controller
                   value: controller.tipoGasto,
                   items:
                       ['Fijo', 'Variable']
@@ -113,9 +119,9 @@ class _GastosTabState extends State<GastosTab> {
                           )
                           .toList(),
                   onChanged: (value) {
-                    setState(() {
-                      controller.tipoGasto = value ?? 'Fijo';
-                    });
+                    // Llama al setter del controller
+                    controller.setTipoGasto(value ?? 'Fijo');
+                    // setState ya no es necesario para esto
                   },
                 ),
               ],
@@ -130,9 +136,8 @@ class _GastosTabState extends State<GastosTab> {
                       ),
                     );
                     _formKey.currentState!.reset();
-                    setState(() {
-                      controller.reset();
-                    });
+                    // Llama a reset del controller para limpiar y notificar
+                    controller.reset();
                   }
                 },
                 icon: const Icon(Icons.save),
@@ -141,6 +146,7 @@ class _GastosTabState extends State<GastosTab> {
                   backgroundColor: Colors.redAccent,
                 ),
               ),
+              // Aquí accedemos al perfil directamente del controlador
               if (controller.perfil is Titular) ...[
                 const Divider(height: 32, color: Colors.black45),
                 const Text(
@@ -168,15 +174,29 @@ class _GastosTabState extends State<GastosTab> {
                         ) ??
                         0.0;
                     if (monto > 0) {
-                      setState(() {
+                      // Acceso directo a la cuenta y perfil a través del controlador
+                      try {
+                        // Aquí estamos modificando el balance directamente en el perfil del controlador.
+                        // Asegúrate de que esta lógica sea la deseada.
+                        // Si Titular.asignarPresupuestoAFamilia maneja la resta del balance,
+                        // o si esta es una operación de "reembolso", deberías ajustar la lógica
+                        // para llamar a un método en el controller (e.g., `controller.eliminarMontoPresupuestoFamiliar(monto)`).
+                        // Por ahora, lo dejo como estaba pero tenlo en cuenta para el diseño de tu lógica.
                         (controller.perfil as Titular).balance -= monto;
-                      });
-                      eliminarPresupuestoController.clear();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Presupuesto familiar reducido'),
-                        ),
-                      );
+                        eliminarPresupuestoController.clear();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Presupuesto familiar reducido'),
+                          ),
+                        );
+                        // Notificar cambios al perfil (y por ende a los widgets que lo escuchan)
+                        (controller.perfil
+                            as Titular); // Si Titular extiende ChangeNotifier
+                      } catch (e) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Error: ${e.toString()}')),
+                        );
+                      }
                     }
                   },
                   icon: const Icon(Icons.remove),

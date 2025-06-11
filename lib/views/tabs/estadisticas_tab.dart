@@ -1,24 +1,45 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wallet_safe/models/perfil.dart';
 import 'package:wallet_safe/widgets/gastos_chart.dart';
 import 'package:wallet_safe/widgets/ingresos_chart.dart';
 import 'package:wallet_safe/services/chart_service.dart';
 import 'package:wallet_safe/widgets/recomendations_dialog.dart';
+import 'package:wallet_safe/providers/app_providers.dart'; // Importar app_providers para acceder a los providers
 
-class EstadisticasTab extends StatefulWidget {
-  final Perfil perfil;
-
-  const EstadisticasTab({super.key, required this.perfil});
+// Cambiamos a ConsumerStatefulWidget para acceder a Riverpod
+class EstadisticasTab extends ConsumerStatefulWidget {
+  const EstadisticasTab({super.key}); // Eliminamos el parámetro 'perfil'
 
   @override
-  State<EstadisticasTab> createState() => _EstadisticasTabState();
+  ConsumerState<EstadisticasTab> createState() => _EstadisticasTabState();
 }
 
-class _EstadisticasTabState extends State<EstadisticasTab> {
+// Cambiamos a ConsumerState
+class _EstadisticasTabState extends ConsumerState<EstadisticasTab> {
+  // Mantenemos _rangoSeleccionado como estado local del widget por ahora.
+  // Si esta lógica crece o necesita ser compartida, podríamos moverla a un Controller/Provider.
   DateRange _rangoSeleccionado = DateRange.diario;
 
   @override
   Widget build(BuildContext context) {
+    // Observamos el perfil seleccionado usando ref.watch
+    // Cada vez que perfilSeleccionadoProvider notifique un cambio, este widget se reconstruirá.
+    final Perfil? perfil = ref.watch(perfilSeleccionadoProvider);
+
+    if (perfil == null) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('Cargando perfil...'),
+          ],
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Estadísticas'),
@@ -82,7 +103,8 @@ class _EstadisticasTabState extends State<EstadisticasTab> {
                 ],
               ),
               child: IngresosChart(
-                ingresos: widget.perfil.cnIngresos,
+                // Pasamos el perfil obtenido de Riverpod
+                ingresos: perfil.cnIngresos,
                 rango: _rangoSeleccionado,
               ),
             ),
@@ -104,7 +126,8 @@ class _EstadisticasTabState extends State<EstadisticasTab> {
                 ],
               ),
               child: GastosChart(
-                gastos: widget.perfil.cnGastos,
+                // Pasamos el perfil obtenido de Riverpod
+                gastos: perfil.cnGastos,
                 rango: _rangoSeleccionado,
               ),
             ),
@@ -113,8 +136,8 @@ class _EstadisticasTabState extends State<EstadisticasTab> {
               alignment: Alignment.center,
               child: ElevatedButton.icon(
                 onPressed: () {
-                  // SIMPLEMENTE LLAMAR AL MÉTODO ESTÁTICO DEL NUEVO DIÁLOGO
-                  FinancialInsightDialog.show(context, widget.perfil);
+                  // Pasamos el perfil obtenido de Riverpod
+                  FinancialInsightDialog.show(context, perfil);
                 },
                 icon: const Icon(Icons.info_outline),
                 label: const Text("Ver Nivel Financiero"),

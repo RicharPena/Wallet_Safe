@@ -3,6 +3,7 @@ class Gasto {
   final double monto;
   final DateTime fecha;
   final String descripcion;
+  final String categoria;
   final String tipo;
   final bool automatico;
 
@@ -11,6 +12,7 @@ class Gasto {
     required this.monto,
     required this.fecha,
     required this.descripcion,
+    required this.categoria,
     required this.tipo,
     required this.automatico,
   });
@@ -28,6 +30,7 @@ class Gasto {
       monto: monto,
       fecha: DateTime.now(),
       descripcion: descripcion,
+      categoria: categoria,
       tipo: tipo,
       automatico: automatico,
     );
@@ -41,6 +44,7 @@ class Gasto {
       'monto': monto,
       'fecha': fecha.toIso8601String(),
       'descripcion': descripcion,
+      'categoria': categoria,
       'tipo': tipo,
       'automatico': automatico,
     };

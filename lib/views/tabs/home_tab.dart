@@ -1,42 +1,64 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'package:wallet_safe/controllers/home_tab_profiles_controller.dart';
 import 'package:wallet_safe/models/cuenta.dart';
 import 'package:wallet_safe/models/perfil.dart';
 import 'package:wallet_safe/controllers/graphics_helper_controller.dart';
 import 'package:wallet_safe/widgets/resumen_lineal.dart';
+import 'package:wallet_safe/providers/app_providers.dart';
 
-class HomeTab extends StatefulWidget {
-  final Perfil perfil;
-  final Cuenta cuenta;
-  final VoidCallback onLogout;
-
-  const HomeTab({
-    required this.cuenta,
-    required this.perfil,
-    required this.onLogout,
-    super.key,
-  });
-
-  @override
-  State<HomeTab> createState() => _HomeTabState();
+// Extensión para firstWhereOrNull, la mantendremos aquí por ahora si es global.
+// Si solo se usa en HomeTab, podrías moverla dentro del archivo si prefieres.
+extension IterableExtension<T> on Iterable<T> {
+  T? firstWhereOrNull(bool Function(T element) test) {
+    for (T element in this) {
+      if (test(element)) return element;
+    }
+    return null;
+  }
 }
 
-class _HomeTabState extends State<HomeTab> {
+// 1. Cambia a ConsumerStatefulWidget
+class HomeTab extends ConsumerStatefulWidget {
+  final VoidCallback onLogout;
+
+  const HomeTab({required this.onLogout, super.key});
+
+  @override
+  ConsumerState<HomeTab> createState() => _HomeTabState();
+}
+
+// 3. Cambia a ConsumerState
+class _HomeTabState extends ConsumerState<HomeTab> {
   String currentView = 'Hoy'; // Control de vista (Hoy, Semana, Mes)
-  double dineroActual = 0;
+  // dineroActual ya no necesita ser una variable de estado aquí,
+  // se calculará en el build con los datos reactivos.
 
   @override
   Widget build(BuildContext context) {
-    final isTitular = widget.perfil.nombre == "Titular";
-    final perfilesNormales =
-        widget.cuenta.perfiles.where((p) => p.nombre != "Titular").toList();
+    // 3. Obtén la cuenta y el perfil desde los providers
+    final Cuenta? cuentaActiva = ref.watch(cuentaActivaProvider);
+    final Perfil? perfilActivo = ref.watch(perfilSeleccionadoProvider);
 
-    final dineroActual = calcularDineroActual(widget.perfil, currentView);
+    if (cuentaActiva == null || perfilActivo == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    // Usa perfilActivo en lugar de widget.perfil
+    final isTitular = perfilActivo.nombre == "Titular";
+
+    // Usa cuentaActiva en lugar de widget.cuenta para acceder a otros perfiles
+    final perfilesNormales =
+        cuentaActiva.perfiles.where((p) => p.nombre != "Titular").toList();
+
+    // Llama a calcularDineroActual con perfilActivo
+    final dineroActual = calcularDineroActual(perfilActivo, currentView);
 
     final List<FlSpot> titularSpots =
         isTitular
-            ? ProfilesController.getLineSpots(widget.perfil, currentView)
+            ? ProfilesController.getLineSpots(perfilActivo, currentView)
             : [];
 
     // Otras líneas para perfiles normales
@@ -50,7 +72,8 @@ class _HomeTabState extends State<HomeTab> {
               return LineChartBarData(
                 spots: spots,
                 isCurved: true,
-                color: _colorForPerfil(widget.cuenta, perfil),
+                // 4. Actualiza _colorForPerfil para usar cuentaActiva
+                color: _colorForPerfil(cuentaActiva, perfil),
                 barWidth: 3,
                 isStrokeCapRound: true,
                 dotData: FlDotData(show: false),
@@ -60,11 +83,11 @@ class _HomeTabState extends State<HomeTab> {
             : [
               LineChartBarData(
                 spots: ProfilesController.getLineSpots(
-                  widget.perfil,
+                  perfilActivo, // Usa perfilActivo
                   currentView,
                 ),
                 isCurved: true,
-                color: Colors.green,
+                color: Colors.green, // Color para el perfil no titular
                 barWidth: 3,
                 isStrokeCapRound: true,
                 dotData: FlDotData(show: false),
@@ -106,11 +129,11 @@ class _HomeTabState extends State<HomeTab> {
               // 👋 Nombre del usuario
               AppBar(
                 leading: IconButton(
-                  icon: Icon(Icons.arrow_back),
+                  icon: const Icon(Icons.arrow_back), // Usa const si no cambia
                   onPressed: widget.onLogout,
                 ),
                 title: Text(
-                  'Hola, ${widget.perfil.nombre}',
+                  'Hola, ${perfilActivo.nombre}', // Usa perfilActivo
                   style: const TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -118,7 +141,7 @@ class _HomeTabState extends State<HomeTab> {
                 ),
               ),
 
-              if (widget.perfil.nombre == "Titular")
+              if (perfilActivo.nombre == "Titular") // Usa perfilActivo
                 Container(
                   margin: const EdgeInsets.only(bottom: 16.0, top: 10),
                   padding: const EdgeInsets.all(12.0),
@@ -168,7 +191,6 @@ class _HomeTabState extends State<HomeTab> {
                           onSelected: (_) {
                             setState(() {
                               currentView = vista;
-                              // Aquí luego puedes llamar a métodos que actualicen los datos
                             });
                           },
                         ),
@@ -183,7 +205,7 @@ class _HomeTabState extends State<HomeTab> {
     );
   }
 
-  //Método auxiliar para calculo de dinero actual
+  // Método auxiliar para cálculo de dinero actual
   double calcularDineroActual(Perfil perfil, String vista) {
     DateTime now = DateTime.now();
 
@@ -196,7 +218,7 @@ class _HomeTabState extends State<HomeTab> {
               fecha.day == hoy.day;
         case 'Semana':
           final inicioSemana = hoy.subtract(Duration(days: hoy.weekday - 1));
-          final finSemana = inicioSemana.add(Duration(days: 6));
+          final finSemana = inicioSemana.add(const Duration(days: 6));
           return fecha.isAfter(
                 inicioSemana.subtract(const Duration(seconds: 1)),
               ) &&
@@ -221,6 +243,7 @@ class _HomeTabState extends State<HomeTab> {
 }
 
 // Método auxiliar para dar un color único a cada perfil
+// Este método ahora recibe la Cuenta para poder iterar sobre sus perfiles.
 Color _colorForPerfil(Cuenta cuenta, Perfil perfil) {
   final index = cuenta.perfiles.indexOf(perfil);
   final colors = [Colors.blue, Colors.green, Colors.orange, Colors.purple];

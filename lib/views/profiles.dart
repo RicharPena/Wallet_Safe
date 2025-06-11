@@ -2,23 +2,34 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wallet_safe/models/cuenta.dart';
 import 'package:wallet_safe/models/perfil.dart';
-import 'package:wallet_safe/views/homePage.dart'; // ¡Importa tus nuevos providers!
+import 'package:wallet_safe/views/homePage.dart' hide IterableExtension;
 import '../providers/app_providers.dart';
 
-class ProfileViews extends StatefulWidget {
-  final Cuenta cuenta; // Aún la pasamos para mantener la API si es necesario,
-  // pero la usaremos menos directamente en los hijos.
-
-  const ProfileViews({required this.cuenta, super.key});
-
-  @override
-  _ProfileViewsState createState() => _ProfileViewsState();
+// Extensión para firstWhereOrNull, la mantendremos aquí por ahora si es global.
+// Si solo se usa en ProfileViews, podrías moverla dentro del archivo si prefieres.
+extension IterableExtension<T> on Iterable<T> {
+  T? firstWhereOrNull(bool Function(T element) test) {
+    for (T element in this) {
+      if (test(element)) return element;
+    }
+    return null;
+  }
 }
 
-class _ProfileViewsState extends State<ProfileViews> {
-  List<Perfil> get perfiles => widget.cuenta.perfiles;
+class ProfileViews extends ConsumerStatefulWidget {
+  const ProfileViews({super.key});
 
-  void _agregarPerfil() {
+  @override
+  ConsumerState<ProfileViews> createState() => _ProfileViewsState();
+}
+
+class _ProfileViewsState extends ConsumerState<ProfileViews> {
+  @override
+  void initState() {
+    super.initState();
+  }
+
+  void _agregarPerfil(Cuenta cuentaActual) {
     String nuevoNombre = '';
     showDialog(
       context: context,
@@ -34,9 +45,16 @@ class _ProfileViewsState extends State<ProfileViews> {
           actions: [
             TextButton(
               onPressed: () {
-                if (nuevoNombre.trim().isNotEmpty && perfiles.length < 4) {
+                if (nuevoNombre.trim().isNotEmpty &&
+                    cuentaActual.perfiles.length < 4) {
+                  // Asumimos que `agregarFamiliar` modifica la lista de perfiles
+                  // directamente en el objeto Cuenta. Si `Cuenta` es un
+                  // ChangeNotifier, esto notificará a `cuentaActivaProvider`
+                  // para que reconstruya `ProfileViews`. Si `Cuenta` es inmutable,
+                  // necesitarías crear una nueva instancia de Cuenta con los perfiles
+                  // actualizados y luego llamar a `ref.read(cuentaActivaProvider.notifier).setCuenta(nuevaCuenta)`.
                   setState(() {
-                    widget.cuenta.agregarFamiliar(nuevoNombre.trim());
+                    cuentaActual.agregarFamiliar(nuevoNombre.trim());
                   });
                   Navigator.pop(context);
                 }
@@ -52,23 +70,15 @@ class _ProfileViewsState extends State<ProfileViews> {
   Widget _buildPerfilCard(Perfil perfil) {
     return GestureDetector(
       onTap: () {
+        // Usa ref.read para obtener el notifier y establecer el perfil seleccionado globalmente
+        ref.read(perfilSeleccionadoProvider.notifier).setPerfil(perfil);
+
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
             builder:
-                (context) => ProviderScope(
-                  // Un nuevo ProviderScope para los overrides
-                  overrides: [
-                    perfilSeleccionadoProvider.overrideWithValue(
-                      perfil,
-                    ), // <-- Aquí se provee el Perfil
-                  ],
-                  child: HomePage(
-                    cuenta: widget.cuenta,
-                    perfil: perfil,
-                  ), // HomePage aún recibe el Perfil y Cuenta
-                  // pero sus hijos pueden acceder por provider.
-                ),
+                (context) =>
+                    HomePage(), // HomePage no necesita un ProviderScope aquí
           ),
         );
         ScaffoldMessenger.of(context).showSnackBar(
@@ -92,9 +102,9 @@ class _ProfileViewsState extends State<ProfileViews> {
     );
   }
 
-  Widget _buildAgregarPerfilCard() {
+  Widget _buildAgregarPerfilCard(Cuenta cuentaActual) {
     return GestureDetector(
-      onTap: _agregarPerfil,
+      onTap: () => _agregarPerfil(cuentaActual),
       child: Container(
         width: 140,
         height: 100,
@@ -104,9 +114,10 @@ class _ProfileViewsState extends State<ProfileViews> {
           border: Border.all(color: Colors.grey, width: 2),
         ),
         alignment: Alignment.center,
-        child: Column(
+        child: const Column(
+          // Añadido 'const' para optimización
           mainAxisSize: MainAxisSize.min,
-          children: const [
+          children: [
             Icon(Icons.add, size: 30, color: Colors.black54),
             SizedBox(height: 8),
             Text('Agregar perfil'),
@@ -118,6 +129,33 @@ class _ProfileViewsState extends State<ProfileViews> {
 
   @override
   Widget build(BuildContext context) {
+    // ref.watch() aquí es para que ProfileViews se reconstruya si la cuenta cambia.
+    // Esto es importante si el método `agregarFamiliar` modifica la `Cuenta` de forma que notifica.
+    print('--- ProfileViews: Reconstruyendo ---');
+    final Cuenta? cuentaActual = ref.watch(cuentaActivaProvider);
+    print(
+      'ProfileViews - cuentaActual: ${cuentaActual != null ? "Disponible" : "NULL"}',
+    );
+
+    // Muestra un indicador de carga o un mensaje si la cuenta aún es null (aunque no debería pasar aquí)
+    if (cuentaActual == null) {
+      print(
+        'ProfileViews - ERROR: cuentaActual es NULL después de salir de perfil.',
+      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    print(
+      'ProfileViews - Número de perfiles en cuentaActual: ${cuentaActual.perfiles.length}',
+    );
+    if (cuentaActual.perfiles.isEmpty) {
+      print(
+        'ProfileViews - Advertencia: La lista de perfiles de la cuenta está vacía.',
+      );
+      // Si la lista de perfiles está vacía (aunque tu constructor de Cuenta
+      // siempre añade un 'Titular'), esto podría ser un punto de fallo si
+      // la data no se carga correctamente.
+    }
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -136,8 +174,9 @@ class _ProfileViewsState extends State<ProfileViews> {
                 runSpacing: 20,
                 alignment: WrapAlignment.center,
                 children: [
-                  ...perfiles.map(_buildPerfilCard).toList(),
-                  if (perfiles.length < 4) _buildAgregarPerfilCard(),
+                  ...cuentaActual.perfiles.map(_buildPerfilCard).toList(),
+                  if (cuentaActual.perfiles.length < 4)
+                    _buildAgregarPerfilCard(cuentaActual),
                 ],
               ),
             ],

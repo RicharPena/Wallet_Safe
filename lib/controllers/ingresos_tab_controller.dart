@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart'; // Importar Riverpod
 import 'package:wallet_safe/models/cuenta.dart';
 import 'package:wallet_safe/models/perfil.dart';
 import 'package:wallet_safe/models/ingresos.dart';
@@ -6,9 +7,21 @@ import 'package:wallet_safe/models/titular.dart';
 import 'package:wallet_safe/models/familia.dart';
 import 'package:wallet_safe/models/presupuesto_personal.dart';
 
-class IngresosTabController with ChangeNotifier {
-  final Cuenta cuenta;
-  final Perfil perfil;
+// Cambiamos 'with ChangeNotifier' por 'extends StateNotifier<bool>'
+// El 'bool' aquí es solo un tipo de estado. Puedes usar void o un tipo más significativo
+// si el controlador realmente tiene un estado booleano para notificar.
+// Para controladores que solo notifican cambios a través de notifyListeners(),
+// a veces se usa un tipo de estado 'void' o 'int' para un "dummy state".
+// Para este caso, mantener un 'bool' o cambiar a 'void' está bien.
+// Si no quieres manejar un 'state' explícito, puedes hacer que extienda StateNotifier<void>
+// y solo usar `notifyListeners` (aunque en StateNotifier es `state = !state;` o similar
+// para forzar una notificación si el estado es el mismo).
+// Sin embargo, como ya usas ChangeNotifier, simplemente implementaremos StateNotifier de esa forma.
+
+class IngresosTabController extends StateNotifier<bool> {
+  // Cambiado aquí
+  final Cuenta? cuenta;
+  final Perfil? perfil;
 
   // TextEditingControllers
   final TextEditingController montoController = TextEditingController();
@@ -31,7 +44,7 @@ class IngresosTabController with ChangeNotifier {
   String? categoriaPresupuestoFamiliarSeleccionada;
   String? perfilFamiliarSeleccionadoNombre;
 
-  // Listas de categorías (sin cambios, ya que no se relacionan directamente con el modelo Ingreso)
+  // Listas de categorías (sin cambios)
   final List<String> categoriasIngresosPersonales = [
     'Salario',
     'Freelance',
@@ -40,7 +53,6 @@ class IngresosTabController with ChangeNotifier {
     'Ventas',
     'Otros Ingresos',
   ];
-
   final List<String> categoriasPresupuestoPersonal = [
     'Alimentos',
     'Transporte',
@@ -53,7 +65,6 @@ class IngresosTabController with ChangeNotifier {
     'Deudas',
     'Otros Gastos',
   ];
-
   final List<String> categoriasPresupuestoFamiliar = [
     'Comida Familiar',
     'Educación Hijos',
@@ -65,31 +76,72 @@ class IngresosTabController with ChangeNotifier {
     'Otros Gastos Familiares',
   ];
 
-  // Simulador de ID para Ingresos y Presupuesto Personal (para propósitos de demostración)
   static int _nextIngresoId = 1;
-  static int _nextPresupuestoPersonalId = 1; // Nuevo para presupuesto personal
+  static int _nextPresupuestoPersonalId = 1;
 
-  IngresosTabController({required this.cuenta, required this.perfil}) {
-    categoriaIngresoSeleccionada = categoriasIngresosPersonales.first;
-    categoriaPresupuestoPersonalSeleccionada =
-        categoriasPresupuestoPersonal.first;
-    categoriaPresupuestoFamiliarSeleccionada =
-        categoriasPresupuestoFamiliar.first;
-    perfil.addListener(notifyListeners);
+  // Constructor
+  IngresosTabController({this.cuenta, this.perfil}) : super(false) {
+    // Llamar a super con un estado inicial
+    if (perfil != null) {
+      categoriaIngresoSeleccionada = categoriasIngresosPersonales.first;
+      categoriaPresupuestoPersonalSeleccionada =
+          categoriasPresupuestoPersonal.first;
+      categoriaPresupuestoFamiliarSeleccionada =
+          categoriasPresupuestoFamiliar.first;
+    } else {
+      categoriaIngresoSeleccionada = null;
+      categoriaPresupuestoPersonalSeleccionada = null;
+      categoriaPresupuestoFamiliarSeleccionada = null;
+    }
+    // Ya no necesitas perfil.addListener(notifyListeners); si extiendes StateNotifier
+    // porque los cambios al `state` del StateNotifier o a propiedades observables
+    // del perfil (si el perfil mismo es un ChangeNotifier) ya dispararán reconstrucciones
+    // a través del ref.watch de Riverpod.
   }
 
   // Setters para actualizar las propiedades y notificar cambios
+  // En StateNotifier, en lugar de notifyListeners(), se actualiza el 'state'.
+  // Para un controlador que solo "notifica", puedes usar un dummy state como bool.
   void setEsAutomatico(bool value) {
     _esAutomatico = value;
-    notifyListeners();
+    state = !state; // Cambia el estado para notificar a los oyentes
   }
 
   void setTipoIngreso(String value) {
     _tipoIngreso = value;
-    notifyListeners();
+    state = !state;
+  }
+
+  void setCategoriaIngresoSeleccionada(String? value) {
+    if (categoriaIngresoSeleccionada != value) {
+      categoriaIngresoSeleccionada = value;
+      state = !state;
+    }
+  }
+
+  void setCategoriaPresupuestoPersonalSeleccionada(String? value) {
+    if (categoriaPresupuestoPersonalSeleccionada != value) {
+      categoriaPresupuestoPersonalSeleccionada = value;
+      state = !state;
+    }
+  }
+
+  void setPerfilFamiliarSeleccionadoNombre(String? value) {
+    if (perfilFamiliarSeleccionadoNombre != value) {
+      perfilFamiliarSeleccionadoNombre = value;
+      state = !state;
+    }
+  }
+
+  void setCategoriaPresupuestoFamiliarSeleccionada(String? value) {
+    if (categoriaPresupuestoFamiliarSeleccionada != value) {
+      categoriaPresupuestoFamiliarSeleccionada = value;
+      state = !state;
+    }
   }
 
   String? validateMonto(String? value) {
+    // ... tu lógica de validación ...
     if (value == null || value.isEmpty) {
       return 'Por favor, ingresa un monto';
     }
@@ -100,8 +152,11 @@ class IngresosTabController with ChangeNotifier {
     return null;
   }
 
-  // --- Lógica para Guardar Ingreso Personal ---
   void guardarIngreso() {
+    if (perfil == null) {
+      print('Error: Perfil no disponible para guardar ingreso.');
+      return;
+    }
     final monto = double.parse(montoController.text.replaceAll(',', '.'));
     final descripcion = descripcionController.text;
     final categoria = categoriaIngresoSeleccionada!;
@@ -116,11 +171,11 @@ class IngresosTabController with ChangeNotifier {
       automatico: _esAutomatico,
     );
 
-    // Llama al método agregarIngreso del perfil, que se encargará del balance
-    perfil.agregarIngreso(ingreso);
-
-    // Puedes mantener esta llamada si tu clase Ingreso.registrarIngreso hace algo adicional (e.g., persistencia)
+    perfil!.agregarIngreso(
+      ingreso,
+    ); // Esto debería notificar al perfil y por ende a los observadores
     Ingreso.registrarIngreso(
+      // Esto es para persistencia o lógica externa
       id: ingreso.id,
       monto: ingreso.monto,
       descripcion: ingreso.descripcion,
@@ -131,50 +186,48 @@ class IngresosTabController with ChangeNotifier {
     reset();
   }
 
-  // --- Lógica para Crear Presupuesto Personal ---
   void crearPresupuestoPersonal() {
+    if (perfil == null) {
+      print('Error: Perfil no disponible para guardar ingreso.');
+      return;
+    }
     final monto = double.parse(
       montoPresupuestoPersonalController.text.replaceAll(',', '.'),
     );
     final categoria = categoriaPresupuestoPersonalSeleccionada!;
 
-    if (monto > perfil.balance) {
+    if (monto > perfil!.balance) {
       throw Exception(
         'El monto del presupuesto personal excede el saldo disponible del perfil.',
       );
     }
 
-    // Crea el objeto PresupuestoPersonal
     final nuevoPresupuestoPersonal = PresupuestoPersonal(
-      id: _nextPresupuestoPersonalId++, // Asigna un ID simulado
+      id: _nextPresupuestoPersonalId++,
       montoAsignado: monto,
       categoria: categoria,
-      perfilId: perfil.id, // Asocia el presupuesto con el ID del perfil actual
+      perfilId: perfil!.id,
     );
 
-    // Llama al método agregarPresupuestoPersonal del perfil
-    perfil.agregarPresupuestoPersonal(nuevoPresupuestoPersonal);
-
-    // Opcional: Si quieres restar el monto del balance inmediatamente, pero tu Perfil.agregarPresupuestoPersonal no lo hace
-    // Si la lógica es que el presupuesto personal es una "asignación" de tu propio dinero y esto reduce tu balance,
-    // entonces deberías hacer `perfil.balance -= monto;` aquí o dentro de `perfil.agregarPresupuestoPersonal`.
-    // Por la estructura de tus clases, asumo que `agregarPresupuestoPersonal` solo añade a la lista
-    // y no afecta el balance directamente (es más una "categorización" de dinero).
-    // Si necesitas que afecte el balance, indícamelo.
-
+    perfil!.agregarPresupuestoPersonal(nuevoPresupuestoPersonal);
     reset();
   }
 
-  // --- Lógica para Asignar Presupuesto Familiar ---
   void asignarPresupuestoFamiliar() {
-    // Primero, asegurar que el perfil actual es un Titular
+    if (perfil == null || cuenta == null) {
+      print(
+        'Error: Cuenta o Perfil no disponibles para asignar presupuesto familiar.',
+      );
+      return;
+    }
+
     if (perfil is! Titular) {
       throw Exception(
         'Solo el perfil Titular puede asignar presupuesto familiar.',
       );
     }
 
-    final titular = perfil as Titular; // Castear de forma segura a Titular
+    final titular = perfil as Titular;
     final monto = double.parse(
       montoPresupuestoFamiliarController.text.replaceAll(',', '.'),
     );
@@ -187,11 +240,7 @@ class IngresosTabController with ChangeNotifier {
       );
     }
 
-    // Busca el perfil familiar por nombre en la lista de familiares del Titular
-    // (Asegúrate de que `titular.familiares` esté disponible, si no, usa `cuenta.familiares`)
-    // Asumo que `titular.familiares` es una lista de `Familia` en tu modelo `Titular`
-    final Familia? perfilFamiliar = cuenta.familiares.firstWhereOrNull(
-      // Debe ser de tipo Familia
+    final Familia? perfilFamiliar = cuenta!.familiares.firstWhereOrNull(
       (f) => f.nombre == perfilFamiliarSeleccionadoNombre,
     );
 
@@ -199,15 +248,12 @@ class IngresosTabController with ChangeNotifier {
       throw Exception('Perfil familiar no encontrado.');
     }
 
-    // La validación del balance ya la hace Titular.asignarPresupuestoAFamilia,
-    // pero podemos hacerla aquí también para feedback temprano en la UI
     if (monto > titular.balance) {
       throw Exception(
         'El monto del presupuesto familiar excede tu saldo disponible como Titular.',
       );
     }
 
-    // Llama al método específico de Titular para asignar el presupuesto
     final bool asignado = titular.asignarPresupuestoAFamilia(
       perfilFamiliar,
       monto,
@@ -215,12 +261,10 @@ class IngresosTabController with ChangeNotifier {
     );
 
     if (!asignado) {
-      // Esto capturaría si el método interno de Titular.asignarPresupuestoAFamilia retorna false
       throw Exception(
         'No se pudo asignar el presupuesto familiar. Verifica el monto o el familiar.',
       );
     }
-
     reset();
   }
 
@@ -239,7 +283,8 @@ class IngresosTabController with ChangeNotifier {
         categoriasPresupuestoFamiliar.first;
     perfilFamiliarSeleccionadoNombre = null;
 
-    notifyListeners();
+    state =
+        !state; // Notifica que el estado interno del controlador ha cambiado
   }
 
   @override
@@ -248,12 +293,12 @@ class IngresosTabController with ChangeNotifier {
     descripcionController.dispose();
     montoPresupuestoPersonalController.dispose();
     montoPresupuestoFamiliarController.dispose();
-    perfil.removeListener(notifyListeners);
-    super.dispose();
+    // No necesitas perfil.removeListener(notifyListeners) si usas StateNotifier.
+    super.dispose(); // Llama a super.dispose() para StateNotifier
   }
 }
 
-// Extensión para List para `firstWhereOrNull`
+// Extensión para List para `firstWhereOrNull` (la mantienes)
 extension ListExtensions<T> on List<T> {
   T? firstWhereOrNull(bool Function(T element) test) {
     for (var element in this) {

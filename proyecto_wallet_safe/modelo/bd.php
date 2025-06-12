@@ -52,11 +52,26 @@ class BD {
     
         if ($cuenta && password_verify($contrasena, $cuenta['contrasena'])) {
             unset($cuenta['contrasena']); // No enviamos la contraseña al frontend
-            return ["estado" => "ok", "mensaje" => "Inicio de sesión exitoso", "usuario" => $cuenta];
+
+             $perfiles = $this->obtenerPerfilesPorCuenta($cuenta['id']); //cogemos los perfiles asociados a la cuenta
+
+            return ["estado" => "ok", "mensaje" => "Inicio de sesión exitoso", "usuario" => $cuenta,"perfiles" => $perfiles];
         }
+
+        
+
     
         return ["estado" => "error", "mensaje" => "Correo o contraseña incorrectos"];
     }
+
+
+    public function obtenerPerfilesPorCuenta($cuenta_id) {
+    $sql = "SELECT id, nombre FROM perfil WHERE cuenta_id = ?";
+    $stmt = $this->conexion->prepare($sql);
+    $stmt->execute([$cuenta_id]);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
 
     public function editarPerfil($id, $nombre = null, $correo = null, $contrasena = null) {
         $campos = [];

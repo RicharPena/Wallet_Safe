@@ -25,6 +25,24 @@ class BD {
             return ["estado" => "error", "mensaje" => $e->getMessage()];
         }
     }
+       
+
+    public function crearPerfil($nombre, $cuenta_id) {
+        try {
+            $sql = "INSERT INTO perfil (nombre, cuenta_id) VALUES (?, ?)";
+            $stmt = $this->conexion->prepare($sql);
+            
+            $stmt->execute([$nombre, $cuenta_id]);
+            return ["estado" => "ok", "mensaje" => "Perfil registrado correctamente"];
+        } catch (PDOException $e) {
+            return ["estado" => "error", "mensaje" => $e->getMessage()];
+        }
+    }
+
+    
+   
+
+
 
     public function iniciarSesion($correo, $contrasena) {
         $sql = "SELECT * FROM cuenta WHERE correo = ?";

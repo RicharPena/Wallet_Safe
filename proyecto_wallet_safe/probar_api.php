@@ -34,7 +34,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'descripcion' => $_POST['descripcion'], 
             'perfil_id' => $_SESSION['usuario']['id'] 
         ]; 
-}
+    }elseif ($accion === 'registrarGasto') { 
+        $data = [ 
+            'monto' => $_POST['monto'], 
+            'automatico' => $_POST['automatico'], 
+            'tipo' => $_POST['tipo'],
+             'rubro' => $_POST['rubro'], 
+             'descripcion' => $_POST['descripcion'], 
+             'perfil_id' => $_SESSION['usuario']['id'] 
+            ];
+        
+        }elseif ($accion === 'perfil') { 
+    $data = [ 
+        'nombre' => $_POST['nombre_perfil'], 
+        'cuenta_id' => $_SESSION['usuario']['id'] 
+    ];
+
+
+    }
+
+
 
     $options = [
         'http' => [
@@ -103,6 +122,15 @@ if (isset($_GET["logout"])) {
 
 
         <hr>
+        <form method="POST">
+        <h4>Crear Perfil</h4>
+        <input type="hidden" name="accion" value="perfil">
+        <label>Nombre del perfil:</label><br>
+        <input type="text" name="nombre_perfil" required><br>
+        <button type="submit">Crear Perfil</button>
+    </form>
+
+    <hr>
 
 
          <form method="POST">
@@ -123,6 +151,28 @@ if (isset($_GET["logout"])) {
         <input type="text" name="descripcion"><br>
         <button type="submit">Registrar Ingreso</button>
     </form>
+
+      <hr>
+
+    <form method="POST">
+        <h4>Registrar Gasto</h4>
+        <input type="hidden" name="accion" value="registrarGasto">
+        <label>Monto:</label><br>
+        <input type="number" step="0.01" name="monto" required><br>
+        <label>Automático (0 o 1):</label><br>
+        <input type="number" name="automatico" min="0" max="1" required><br>
+        <label>Tipo:</label><br>
+        <select name="tipo" required>
+            <option value="Fijo">Fijo</option>
+            <option value="Variable">Variable</option>
+        </select><br>
+        <label>Rubro:</label><br>
+        <input type="text" name="rubro" required><br>
+        <label>Descripción:</label><br>
+        <input type="text" name="descripcion"><br>
+        <button type="submit">Registrar Gasto</button>
+    </form>
+
 
     <br>
 

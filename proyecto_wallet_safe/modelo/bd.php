@@ -39,6 +39,68 @@ class BD {
         }
     }
 
+
+    public function obtenerInformacionCompletaPerfil($perfil_id) {
+    try {
+        // Obtener datos del perfil
+        $stmt = $this->conexion->prepare("SELECT * FROM perfil WHERE id = ?");
+        $stmt->execute([$perfil_id]);
+        $perfil = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$perfil) {
+            return ["estado" => "error", "mensaje" => "Perfil no encontrado"];
+        }
+
+        // Obtener ingresos
+        $stmt = $this->conexion->prepare("SELECT * FROM ingresos WHERE perfil_id = ?");
+        $stmt->execute([$perfil_id]);
+        $ingresos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Obtener gastos
+        $stmt = $this->conexion->prepare("SELECT * FROM gastos WHERE perfil_id = ?");
+        $stmt->execute([$perfil_id]);
+        $gastos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Obtener presupuestos asignados
+        $stmt = $this->conexion->prepare("SELECT * FROM asignacion_presupuesto WHERE perfil_asignado_id = ?");
+        $stmt->execute([$perfil_id]);
+        $presupuestos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        
+    foreach ($presupuestos as &$presupuesto) {
+        // Consulta para saber si tiene detalles
+        $stmtDetalle = $this->conexion->prepare("SELECT COUNT(*) FROM detalle_presupuesto WHERE asignacion_id = ?");
+        $stmtDetalle->execute([$presupuesto['id']]);
+        $tieneDetalle = $stmtDetalle->fetchColumn() > 0;
+
+        // Agrega el campo "dividido"
+        $presupuesto['dividido'] = $tieneDetalle;
+    }
+
+       //$info['presupuestos'] = $presupuestos;
+
+
+
+        // Obtener detalles de presupuestos
+        $stmt = $this->conexion->prepare("SELECT * FROM detalle_presupuesto WHERE perfil_id = ?");
+        $stmt->execute([$perfil_id]);
+        $detalles = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        return [
+            "estado" => "ok",
+            "mensaje" => "Datos del perfil obtenidos correctamente",
+            "perfil" => $perfil,
+            "ingresos" => $ingresos,
+            "gastos" => $gastos,
+            "presupuestos" => $presupuestos,
+            "detalles_presupuesto" => $detalles
+        ];
+    } catch (PDOException $e) {
+        return ["estado" => "error", "mensaje" => "Error: " . $e->getMessage()];
+    }
+}
+
+
     
    
 

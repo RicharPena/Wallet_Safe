@@ -1,0 +1,8 @@
+ALTER TABLE gastos
+ADD COLUMN detalle_id INT NULL;
+
+ALTER TABLE gastos
+ADD CONSTRAINT fk_detalle_presupuesto
+FOREIGN KEY (detalle_id) REFERENCES detalle_presupuesto(id)
+ON DELETE SET NULL
+ON UPDATE CASCADE;

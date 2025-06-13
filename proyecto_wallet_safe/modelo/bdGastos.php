@@ -15,13 +15,15 @@ class BDGastos {
         }
     }
 
-    public function registrarGastos($monto, $automatico, $tipo, $rubro, $descripcion, $perfil_id) {
+    public function registrarGastos($monto, $automatico, $tipo, $rubro,  $descripcion, $perfil_id, $detalle_id) {
         try {
-            $sql = "INSERT INTO gastos (monto, automatico, tipo, rubro, descripcion,  perfil_id) 
-                    VALUES (?, ?, ?, ?, ?,  ?)";
+            $sql = "INSERT INTO gastos (monto, automatico, tipo, rubro,  descripcion, perfil_id, detalle_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?)";
             $stmt = $this->conexion->prepare($sql);
-            $stmt->execute([$monto, $automatico, $tipo, $rubro, $descripcion, $perfil_id]);
-            return ["estado" => "ok", "mensaje" => "Gasto registrado correctamente"];
+             $detalle_id = $detalle_id !== null ? $detalle_id : null;
+
+            $stmt->execute([$monto, $automatico, $tipo, $rubro,  $descripcion, $perfil_id, $detalle_id]);
+    return ["estado" => "ok", "mensaje" => "Gasto registrado"];
         } catch (PDOException $e) {
             return ["estado" => "error", "mensaje" => $e->getMessage()];
         }

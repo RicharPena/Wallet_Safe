@@ -14,13 +14,17 @@ class GastosControlador {
             return ["estado" => "error", "mensaje" => "Datos incompletos"];
         }
 
+
+        $detalle_id = $data['detalle_id'] ?? null;
+
         return $this->db->registrarGastos(
             $data['monto'],
             $data['automatico'],
             $data['tipo'],
             $data['rubro'],
             $data['descripcion'],
-            $data['perfil_id']
+            $data['perfil_id'],
+            $detalle_id
         );
     }
 

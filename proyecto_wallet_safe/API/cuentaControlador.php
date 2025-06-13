@@ -30,6 +30,14 @@ class CuentaControlador {
         return $this->db->iniciarSesion($data['correo'], $data['contrasena']);
     }
 
+    public function obtenerPerfilCompleto($data) {
+    if (!isset($data['perfil_id'])) {
+        return ["estado" => "error", "mensaje" => "ID de perfil no recibido"];
+    }
+    return $this->db->obtenerInformacionCompletaPerfil($data['perfil_id']);
+    }
+
+
     public function editarPerfil($data) {
         if (!isset($data['id'])) {
             return ["estado" => "error", "mensaje" => "Falta el ID de la cuenta"];

@@ -2,11 +2,14 @@
 header('Content-Type: application/json');
 require_once '../API/cuentaControlador.php';
 require_once '../API/ingresosControlador.php';
-require_once '../API/gastosControlador.php'; // AÑADIDO
+require_once '../API/gastosControlador.php';
+require_once '../API/asignacionesControlador.php';  
+require_once '../API/detallePresupuestoControlador.php';// AÑADIDO
 
 $input = json_decode(file_get_contents('php://input'), true);
 $accion = $_GET['accion'] ?? '';
 
+error_log("Accion recibida: " . $accion);
 
 
 $cuentaControlador = new CuentaControlador();
@@ -25,7 +28,13 @@ switch ($accion) {
     case 'perfil':
         
         echo json_encode($cuentaControlador->perfil($input));
-        break;    
+        break;
+        
+    case 'perfilCompleto':
+    
+       echo json_encode($cuentaControlador->obtenerPerfilCompleto($input));
+       break;
+    
 
     case 'editar':
         
@@ -42,8 +51,18 @@ switch ($accion) {
         echo json_encode($gastosControlador->registrarGastos($input));
         break;
 
+    case 'registrarAsignacion':
+        $asignacionescontrolador = new AsignacionesControlador();
+        echo json_encode($asignacionescontrolador->registrar($input));
+        break;
+    case 'registrarDetalle':
+        $detallepresupuestocontrolador = new DetallePresupuestoControlador();
+        echo json_encode($detallepresupuestocontrolador->registrar($input));
+        break;
+
+
     default:
-        echo json_encode(["estado" => "error", "mensaje" => "Acción no nooo válida"]);
+        echo json_encode(["estado" => "error", "mensaje" => $accion]);
 }
 ?>
 

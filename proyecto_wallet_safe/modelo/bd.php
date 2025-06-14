@@ -114,10 +114,11 @@ class BD {
     
         if ($cuenta && password_verify($contrasena, $cuenta['contrasena'])) {
             unset($cuenta['contrasena']); // No enviamos la contraseña al frontend
-
+             
              $perfiles = $this->obtenerPerfilesPorCuenta($cuenta['id']); //cogemos los perfiles asociados a la cuenta
+             $cuenta['perfiles']= $perfiles;
 
-            return ["estado" => "ok", "mensaje" => "Inicio de sesión exitoso", "usuario" => $cuenta,"perfiles" => $perfiles];
+            return ["estado" => "ok", "mensaje" => "Inicio de sesión exitoso aqui esta", "cuenta" => $cuenta];
         }
 
         

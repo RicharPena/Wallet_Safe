@@ -10,17 +10,19 @@ class GastosControlador {
     }
 
     public function registrarGastos($data) {
-        if (!isset($data['monto'], $data['automatico'], $data['tipo'], $data['rubro'], $data['descripcion'], $data['perfil_id'])) {
+        if (!isset($data['monto'],  $data['rubro'], $data['descripcion'], $data['perfil_id'])) {
             return ["estado" => "error", "mensaje" => "Datos incompletos"];
         }
 
 
         $detalle_id = $data['detalle_id'] ?? null;
+        $tipo = $data['tipo'] ?? null;
+        $automatico = $data['automatico'] ?? null;
 
         return $this->db->registrarGastos(
             $data['monto'],
-            $data['automatico'],
-            $data['tipo'],
+            $automatico,
+            $tipo,
             $data['rubro'],
             $data['descripcion'],
             $data['perfil_id'],

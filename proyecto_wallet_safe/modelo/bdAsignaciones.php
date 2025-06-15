@@ -17,9 +17,24 @@ class BDAsignaciones {
 
         public function registrarAsignacion($monto_asignado, $perfil_asignado_id, $rubro, $perfil_id) {
         try {
+
+            $this->conexion->beginTransaction();
             $sql = "INSERT INTO asignacion_presupuesto (monto_asignado, perfil_asignado_id, rubro, perfil_id) VALUES (?, ?, ?, ?)";
             $stmt = $this->conexion->prepare($sql);
             $stmt->execute([$monto_asignado, $perfil_asignado_id, $rubro, $perfil_id]);
+
+             $sqlGasto = "INSERT INTO gastos (monto, tipo, rubro, perfil_id, descripcion) 
+                         VALUES (?, 'Variable', ?,  ?, ?)";
+            $stmtGasto = $this->conexion->prepare($sqlGasto);
+            $stmtGasto->execute([
+                $monto_asignado,
+                $rubro, // Puedes usar el mismo rubro como categoría
+                $perfil_id,
+                "Creación de presupuesto"
+            ]);
+
+
+         $this->conexion->commit();
 
             return ["estado" => "ok", "mensaje" => "Asignación registrada correctamente"];
         } catch (PDOException $e) {

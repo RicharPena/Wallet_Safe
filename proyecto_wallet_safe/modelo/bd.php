@@ -65,10 +65,18 @@ class BD {
         $gastos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         // Obtener presupuestos asignados
-        $stmt = $this->conexion->prepare("SELECT * FROM asignacion_presupuesto WHERE perfil_asignado_id = ?");
+       if($perfil['titular']==1){
+        $stmt = $this->conexion->prepare("SELECT * FROM asignacion_presupuesto WHERE perfil_id = ?");
         $stmt->execute([$perfil_id]);
         $presupuestos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+
+       }
+else{
+        $stmt = $this->conexion->prepare("SELECT * FROM asignacion_presupuesto WHERE perfil_asignado_id = ?");
+        $stmt->execute([$perfil_id]);
+        $presupuestos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
         
     foreach ($presupuestos as &$presupuesto) {
         // Consulta para saber si tiene detalles
@@ -78,18 +86,65 @@ class BD {
 
         // Agrega el campo "dividido"
         $presupuesto['dividido'] = $tieneDetalle;
+
+         // Calcular gastos totales asociados a sus detalles
+    $stmtMonto = $this->conexion->prepare("
+        SELECT SUM(g.monto) 
+        FROM gastos g
+        INNER JOIN detalle_presupuesto d ON g.detalle_id = d.id
+        WHERE d.asignacion_id = ?
+    ");
+    $stmtMonto->execute([$presupuesto['id']]);
+    $montoGastos = $stmtMonto->fetchColumn() ?? 0;
+
+    //$presupuesto['gastosTotales'] = number_format($montoGastos, 2, '.', '');
+    $presupuesto['montoTotal'] = number_format($presupuesto['monto_asignado'] - $montoGastos, 2, '.', '');
+
+
+
     }
 
        //$info['presupuestos'] = $presupuestos;
 
 
 
-        // Obtener detalles de presupuestos
-        $stmt = $this->conexion->prepare("SELECT * FROM detalle_presupuesto WHERE perfil_id = ?");
-        $stmt->execute([$perfil_id]);
-        $detalles = $stmt->fetchAll(PDO::FETCH_ASSOC);
+  // Obtener detalles de presupuestos
+    $stmt = $this->conexion->prepare("SELECT * FROM detalle_presupuesto WHERE perfil_id = ?");
+    $stmt->execute([$perfil_id]);
+     $detalles = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+    foreach ($detalles as &$detalle) {
+                // Consulta para saber si tiene detalles
+    $stmtgasto = $this->conexion->prepare("SELECT SUM(monto) FROM gastos WHERE detalle_id = ?");
+    $stmtgasto->execute([$detalle['id']]);
+    $gastosTotales = $stmtgasto->fetchColumn(); // <- Aquí extraes el valor real
+
+            // Si no hay gastos, SUM(monto) será null → lo convertimos a 0
+            $gastosTotales = $gastosTotales ?? 0;
+
+            $montoTotal = $detalle['monto'] - $gastosTotales;
+            //$detalle['montoTotal'] = $montoTotal;
+        $detalle['montoTotal'] = number_format($montoTotal, 2, '.', '');
         
+    }
+  
+        // Obtener suma de ingresos
+$stmt = $this->conexion->prepare("SELECT SUM(monto) FROM ingresos WHERE perfil_id = ?");
+$stmt->execute([$perfil_id]);
+$totalIngresos = $stmt->fetchColumn() ?? 0;
+
+// Obtener suma de gastos libres y de creación de presupuesto (los que no tienen detalle_id)
+$stmt = $this->conexion->prepare("
+    SELECT SUM(monto) FROM gastos 
+    WHERE perfil_id = ? AND detalle_id IS NULL
+");
+$stmt->execute([$perfil_id]);
+$gastosNoAsociados = $stmt->fetchColumn() ?? 0;
+
+// Calcular balance libre
+$balanceLibre = $totalIngresos - $gastosNoAsociados;
+$perfil['balance'] = number_format($balanceLibre, 2, '.', '');
+
 
 
 

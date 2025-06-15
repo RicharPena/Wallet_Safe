@@ -31,9 +31,12 @@ class BD {
         try {
             $sql = "INSERT INTO perfil (nombre, cuenta_id) VALUES (?, ?)";
             $stmt = $this->conexion->prepare($sql);
-            
             $stmt->execute([$nombre, $cuenta_id]);
-            return ["estado" => "ok", "mensaje" => "Perfil registrado correctamente"];
+            $idPerfilNuevo = $this->conexion->lastInsertId();
+
+            
+            
+            return ["estado" => "ok", "mensaje" => "Perfil registrado correctamente","id_perfil_creado" => $idPerfilNuevo];
         } catch (PDOException $e) {
             return ["estado" => "error", "mensaje" => $e->getMessage()];
         }
@@ -86,6 +89,15 @@ class BD {
         $stmt->execute([$perfil_id]);
         $detalles = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+        
+
+
+
+
+
+
+
+
         return [
             "estado" => "ok",
             "mensaje" => "Datos del perfil obtenidos correctamente",
@@ -94,6 +106,7 @@ class BD {
             "gastos" => $gastos,
             "presupuestos" => $presupuestos,
             "detalles_presupuesto" => $detalles
+ 
         ];
     } catch (PDOException $e) {
         return ["estado" => "error", "mensaje" => "Error: " . $e->getMessage()];

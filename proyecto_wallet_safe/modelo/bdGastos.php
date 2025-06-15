@@ -21,6 +21,8 @@ class BDGastos {
             VALUES (?, ?, ?, ?, ?, ?, ?)";
             $stmt = $this->conexion->prepare($sql);
              $detalle_id = $detalle_id !== null ? $detalle_id : null;
+              $automatico = $automatico !== null ? $automatico : null;
+               $tipo = $tipo !== null ? $tipo : null;
 
             $stmt->execute([$monto, $automatico, $tipo, $rubro,  $descripcion, $perfil_id, $detalle_id]);
     return ["estado" => "ok", "mensaje" => "Gasto registrado"];

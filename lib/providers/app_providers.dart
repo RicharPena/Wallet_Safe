@@ -272,14 +272,11 @@ final familiaViewModelProvider = StateNotifierProvider.autoDispose<
   FamiliaViewModel,
   Familia?
 >((ref) {
-  final perfilService = ref.read(perfilServiceProvider); // Lee el servicio
+  final perfilService = ref.read(perfilServiceProvider);
 
-  // **** ¡ESTA LÍNEA ES CRUCIAL! ****
-  // Observa el perfilActivoProvider. Cada vez que su estado (el Perfil) cambie,
-  // Riverpod reconstruirá este StateNotifierProvider.
-  final Perfil? currentPerfil = ref.watch(perfilActivoProvider);
+  // No necesitamos ref.watch aquí para el currentPerfil para la construcción inicial
+  // La lógica de carga se hará en el listener de home_tab
 
-  // Crea la instancia de tu ViewModel
   final viewModel = FamiliaViewModel(
     perfilService: perfilService,
     updatePerfilInNotifier: (updatedPerfil) {
@@ -287,16 +284,5 @@ final familiaViewModelProvider = StateNotifierProvider.autoDispose<
     },
   );
 
-  // **** ¡ESTA LÓGICA TAMBIÉN ES CLAVE! ****
-  // Carga la familia en el ViewModel. Esto se ejecutará cada vez que
-  // currentPerfil (el resultado de ref.watch) cambie.
-  if (currentPerfil is Familia) {
-    viewModel.cargarFamilia(currentPerfil);
-  } else {
-    // Si el perfil activo no es una Familia (ej. es un Titular, o nulo),
-    // asegura que el estado del FamiliaViewModel sea nulo.
-    viewModel.state = null;
-  }
-
-  return viewModel; // Retorna la instancia del ViewModel
+  return viewModel;
 });

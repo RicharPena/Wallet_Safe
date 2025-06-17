@@ -7,7 +7,7 @@ import 'package:wallet_safe/models/familia.dart'; // Importar Familia
 
 class PerfilService {
   final String baseUrl =
-      'http://192.168.1.65/proyecto_wallet_safe/controlador/broker.php';
+      'http://172.16.17.227/proyecto_wallet_safe/controlador/broker.php';
 
   // --- Métodos para Autenticación y Obtención de Perfiles ---
 

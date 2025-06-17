@@ -40,7 +40,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // Usamos el perfilSeleccionadoProvider para asegurar que estamos cargando el perfil correcto
-      final currentPerfil = ref.read(perfilSeleccionadoProvider);
+      final currentPerfil = ref.read(perfilActivoProvider);
       if (currentPerfil is Familia) {
         ref
             .read(familiaViewModelProvider.notifier)
@@ -53,9 +53,12 @@ class _HomePageState extends ConsumerState<HomePage> {
   @override
   Widget build(BuildContext context) {
     // Observa el perfil activo a través del provider. Puede ser null al inicio.
-    final Perfil? perfilActivo = ref.watch(perfilSeleccionadoProvider);
+    final Perfil? perfilActivo = ref.watch(perfilActivoProvider);
     // Observa la cuenta activa a través del provider. Puede ser null al inicio.
     final Cuenta? cuentaActiva = ref.watch(cuentaActivaProvider);
+
+    debugPrint('HOME_PAGE: perfilActivo es null? ${perfilActivo == null}');
+    debugPrint('HOME_PAGE: cuentaActiva es null? ${cuentaActiva == null}');
 
     // Si el perfil activo es null, muestra un CircularProgressIndicator o maneja el estado de carga
     if (perfilActivo == null || cuentaActiva == null) {

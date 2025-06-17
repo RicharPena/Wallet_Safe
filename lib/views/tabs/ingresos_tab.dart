@@ -24,15 +24,26 @@ class _IngresosTabState extends ConsumerState<IngresosTab> {
   final _formKeyPresupuestoPersonal = GlobalKey<FormState>();
   final _formKeyPresupuestoFamiliar = GlobalKey<FormState>();
 
+  late final TextEditingController _montoIngresoPersonalController;
+  late final TextEditingController _descripcionIngresoPersonalController;
+  late final TextEditingController _montoPresupuestoPersonalController;
+  late final TextEditingController _montoPresupuestoFamiliarController;
+
   @override
   void initState() {
     super.initState();
+    _montoIngresoPersonalController = TextEditingController();
+    _descripcionIngresoPersonalController = TextEditingController();
+    _montoPresupuestoPersonalController = TextEditingController();
+    _montoPresupuestoFamiliarController = TextEditingController();
   }
 
   @override
   void dispose() {
-    // No necesitamos desregistrar listeners ni hacer dispose del controlador aquí,
-    // ya que Riverpod con .autoDispose se encarga de ello.
+    _montoIngresoPersonalController.dispose();
+    _descripcionIngresoPersonalController.dispose();
+    _montoPresupuestoPersonalController.dispose();
+    _montoPresupuestoFamiliarController.dispose();
     super.dispose();
   }
 
@@ -87,8 +98,12 @@ class _IngresosTabState extends ConsumerState<IngresosTab> {
 
   @override
   Widget build(BuildContext context) {
-    final Perfil? perfil = ref.watch(perfilSeleccionadoProvider);
+    final Perfil? perfil = ref.watch(perfilActivoProvider);
     final Cuenta? cuenta = ref.watch(cuentaActivaProvider);
+    final ingresosController = ref.watch(
+      ingresosTabControllerProvider.notifier,
+    );
+    final ingresosState = ref.watch(ingresosTabControllerProvider);
 
     if (perfil == null || cuenta == null) {
       return const Center(
@@ -102,10 +117,6 @@ class _IngresosTabState extends ConsumerState<IngresosTab> {
         ),
       );
     }
-    final IngresosTabController ingresosController = ref.watch(
-      ingresosTabControllerProvider.notifier,
-    );
-
     final double balanceActual = perfil.balance;
 
     return Scaffold(
@@ -162,8 +173,7 @@ class _IngresosTabState extends ConsumerState<IngresosTab> {
                   children: [
                     TextFormField(
                       controller:
-                          ingresosController
-                              .montoController, // Usa el controller de Riverpod
+                          _montoIngresoPersonalController, // Usa el controller de Riverpod
                       keyboardType: TextInputType.number,
                       inputFormatters: [
                         FilteringTextInputFormatter.allow(
@@ -177,15 +187,14 @@ class _IngresosTabState extends ConsumerState<IngresosTab> {
                         hintText: 'Ej. 150000.00',
                       ),
                       validator:
-                          (value) => ingresosController.validateMonto(
+                          (value) => IngresosTabController.validateMonto(
                             value,
                           ), // Usa el controller de Riverpod
                     ),
                     const SizedBox(height: 16),
                     TextFormField(
                       controller:
-                          ingresosController
-                              .descripcionController, // Usa el controller de Riverpod
+                          _descripcionIngresoPersonalController, // Usa el controller de Riverpod
                       maxLength: 100,
                       maxLines: 3,
                       decoration: const InputDecoration(
@@ -203,17 +212,17 @@ class _IngresosTabState extends ConsumerState<IngresosTab> {
                         border: OutlineInputBorder(),
                       ),
                       value:
-                          ingresosController
+                          ingresosState
                               .categoriaIngresoSeleccionada, // Usa el controller de Riverpod
                       items:
-                          ingresosController.categoriasIngresosPersonales.map((
-                            categoria,
-                          ) {
-                            return DropdownMenuItem<String>(
-                              value: categoria,
-                              child: Text(categoria),
-                            );
-                          }).toList(),
+                          IngresosTabController.categoriasIngresosPersonales
+                              .map((categoria) {
+                                return DropdownMenuItem<String>(
+                                  value: categoria,
+                                  child: Text(categoria),
+                                );
+                              })
+                              .toList(),
                       onChanged: (value) {
                         // Notificar al controlador de Riverpod el cambio
                         ingresosController.setCategoriaIngresoSeleccionada(
@@ -231,9 +240,7 @@ class _IngresosTabState extends ConsumerState<IngresosTab> {
                     SwitchListTile(
                       title: const Text('¿Ingreso automático?'),
                       activeColor: Colors.green,
-                      value:
-                          ingresosController
-                              .esAutomatico, // Usa el controller de Riverpod
+                      value: ingresosState.esAutomatico,
                       onChanged: (value) {
                         ingresosController.setEsAutomatico(
                           value,
@@ -273,26 +280,46 @@ class _IngresosTabState extends ConsumerState<IngresosTab> {
                         onPressed: () {
                           if (_formKeyIngresoPersonal.currentState!
                               .validate()) {
+                            final currentContext = context;
                             try {
-                              ingresosController
-                                  .guardarIngreso(); // Usa el controller de Riverpod
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Ingreso personal guardado correctamente',
-                                  ),
-                                  backgroundColor: Colors.green,
+                              final monto = double.parse(
+                                _montoIngresoPersonalController.text.replaceAll(
+                                  ',',
+                                  '.',
                                 ),
                               );
+                              final descripcion =
+                                  _descripcionIngresoPersonalController.text
+                                      .trim();
+
+                              ingresosController.registrarIngresoPersonal(
+                                monto,
+                                descripcion,
+                                ingresosState.categoriaIngresoSeleccionada!,
+                                ingresosState.tipoIngreso,
+                                ingresosState.esAutomatico,
+                              );
+                              if (currentContext.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Ingreso personal guardado correctamente',
+                                    ),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                              }
                             } catch (e) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    'Error al guardar ingreso: ${e.toString()}',
+                              if (currentContext.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Error al guardar ingreso: ${e.toString()}',
+                                    ),
+                                    backgroundColor: Colors.red,
                                   ),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
+                                );
+                              }
                             }
                           }
                         },
@@ -340,8 +367,7 @@ class _IngresosTabState extends ConsumerState<IngresosTab> {
                       children: [
                         TextFormField(
                           controller:
-                              ingresosController
-                                  .montoPresupuestoPersonalController, // Usa el controller de Riverpod
+                              _montoPresupuestoPersonalController, // Usa el controller de Riverpod
                           keyboardType: TextInputType.number,
                           inputFormatters: [
                             FilteringTextInputFormatter.allow(
@@ -379,10 +405,11 @@ class _IngresosTabState extends ConsumerState<IngresosTab> {
                             border: OutlineInputBorder(),
                           ),
                           value:
-                              ingresosController
+                              ingresosState
                                   .categoriaPresupuestoPersonalSeleccionada, // Usa el controller de Riverpod
                           items:
-                              ingresosController.categoriasPresupuestoPersonal
+                              IngresosTabController
+                                  .categoriasPresupuestoPersonal
                                   .map((categoria) {
                                     return DropdownMenuItem<String>(
                                       value: categoria,
@@ -411,26 +438,49 @@ class _IngresosTabState extends ConsumerState<IngresosTab> {
                             onPressed: () {
                               if (_formKeyPresupuestoPersonal.currentState!
                                   .validate()) {
+                                final currentContext = context;
                                 try {
-                                  ingresosController
-                                      .crearPresupuestoPersonal(); // Usa el controller de Riverpod
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'Presupuesto personal de \$${ingresosController.montoPresupuestoPersonalController.text} para ${ingresosController.categoriaPresupuestoPersonalSeleccionada!} creado.',
-                                      ),
-                                      backgroundColor: Colors.indigo,
-                                    ),
+                                  final monto = double.parse(
+                                    _montoPresupuestoPersonalController.text
+                                        .replaceAll(',', '.'),
                                   );
+                                  ingresosController.asignarPresupuestoPersonal(
+                                    perfil.id,
+                                    ingresosState
+                                        .categoriaPresupuestoPersonalSeleccionada!,
+                                    monto,
+                                    null,
+                                  );
+                                  if (currentContext.mounted) {
+                                    ScaffoldMessenger.of(
+                                      currentContext,
+                                    ).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'Presupuesto personal asignado con éxito.',
+                                        ),
+                                        backgroundColor: Colors.blue,
+                                      ),
+                                    );
+                                    _montoPresupuestoPersonalController
+                                        .clear(); // Limpiar
+                                    ingresosController
+                                        .reset(); // Limpiar estados
+                                  }
                                 } catch (e) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'Error al crear presupuesto personal: ${e.toString()}',
-                                      ),
-                                      backgroundColor: Colors.red,
-                                    ),
+                                  debugPrint(
+                                    'Error al asignar presupuesto personal: $e',
                                   );
+                                  if (currentContext.mounted) {
+                                    ScaffoldMessenger.of(
+                                      currentContext,
+                                    ).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Error: ${e.toString()}'),
+                                        backgroundColor: Colors.red,
+                                      ),
+                                    );
+                                  }
                                 }
                               }
                             },
@@ -477,27 +527,28 @@ class _IngresosTabState extends ConsumerState<IngresosTab> {
                               border: OutlineInputBorder(),
                             ),
                             value:
-                                ingresosController
+                                ingresosState
                                     .perfilFamiliarSeleccionadoNombre, // Usa el controller de Riverpod
                             items:
-                                cuenta
-                                    .familiares // Usa la cuenta obtenida por Riverpod
-                                    .whereType<Familia>()
-                                    .map((f) {
+                                ingresosController.nombresPerfilesFamiliares
+                                    .map((String nombreFamiliar) {
                                       return DropdownMenuItem<String>(
-                                        value: f.nombre,
-                                        child: Text(f.nombre),
+                                        value: nombreFamiliar,
+                                        child: Text(nombreFamiliar),
                                       );
                                     })
                                     .toList(),
-                            onChanged: (value) {
-                              // Notificar al controlador de Riverpod el cambio
-                              ingresosController
-                                  .setPerfilFamiliarSeleccionadoNombre(value);
+                            onChanged: (String? newValue) {
+                              if (newValue != null) {
+                                ingresosController
+                                    .setPerfilFamiliarSeleccionadoNombre(
+                                      newValue,
+                                    );
+                              }
                             },
                             validator: (value) {
                               // Solo validamos si hay familiares registrados para asignar.
-                              if (cuenta.familiares
+                              if (ingresosController.nombresPerfilesFamiliares
                                       .whereType<Familia>()
                                       .isNotEmpty &&
                                   value == null) {
@@ -509,8 +560,7 @@ class _IngresosTabState extends ConsumerState<IngresosTab> {
                           const SizedBox(height: 16),
                           TextFormField(
                             controller:
-                                ingresosController
-                                    .montoPresupuestoFamiliarController, // Usa el controller de Riverpod
+                                _montoPresupuestoFamiliarController, // Usa el controller de Riverpod
                             keyboardType: TextInputType.number,
                             inputFormatters: [
                               FilteringTextInputFormatter.allow(
@@ -548,10 +598,11 @@ class _IngresosTabState extends ConsumerState<IngresosTab> {
                               border: OutlineInputBorder(),
                             ),
                             value:
-                                ingresosController
+                                ingresosState
                                     .categoriaPresupuestoFamiliarSeleccionada, // Usa el controller de Riverpod
                             items:
-                                ingresosController.categoriasPresupuestoFamiliar
+                                IngresosTabController
+                                    .categoriasPresupuestoFamiliar
                                     .map((categoria) {
                                       return DropdownMenuItem<String>(
                                         value: categoria,
@@ -581,16 +632,58 @@ class _IngresosTabState extends ConsumerState<IngresosTab> {
                                 if (_formKeyPresupuestoFamiliar.currentState!
                                     .validate()) {
                                   try {
-                                    ingresosController
-                                        .asignarPresupuestoFamiliar(); // Usa el controller de Riverpod
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          'Presupuesto de \$${ingresosController.montoPresupuestoFamiliarController.text} para ${ingresosController.perfilFamiliarSeleccionadoNombre!} en categoría ${ingresosController.categoriaPresupuestoFamiliarSeleccionada!} asignado.',
-                                        ),
-                                        backgroundColor: Colors.orange,
-                                      ),
+                                    final monto = double.parse(
+                                      _montoPresupuestoFamiliarController.text
+                                          .replaceAll(',', '.'),
                                     );
+                                    final selectedFamiliarName =
+                                        ingresosState
+                                            .perfilFamiliarSeleccionadoNombre;
+
+                                    // Asegúrate de que `familiaresMetadata` está disponible y es correcto
+                                    // para encontrar el ID del perfil familiar
+                                    final perfilFamiliarId =
+                                        ingresosState
+                                            .perfilFamiliarSeleccionadoId;
+
+                                    if (perfilFamiliarId != null) {
+                                      // CAMBIO: Aquí se deben pasar los 3 argumentos
+                                      ingresosController.asignarPresupuestoFamiliar(
+                                        monto, // Primer argumento: el monto
+                                        ingresosState
+                                            .categoriaPresupuestoFamiliarSeleccionada!, // Segundo argumento: la categoría
+                                        perfilFamiliarId, // Tercer argumento: el ID del familiar
+                                      );
+
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              'Presupuesto familiar asignado con éxito a ${selectedFamiliarName}.',
+                                            ),
+                                            backgroundColor: Colors.orange,
+                                          ),
+                                        );
+                                        _montoPresupuestoFamiliarController
+                                            .clear();
+                                        ingresosController.reset();
+                                      }
+                                    } else {
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              'Error: No se pudo encontrar el ID del perfil familiar seleccionado.',
+                                            ),
+                                            backgroundColor: Colors.red,
+                                          ),
+                                        );
+                                      }
+                                    }
                                   } catch (e) {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(

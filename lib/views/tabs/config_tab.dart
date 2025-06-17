@@ -49,8 +49,8 @@ class _ConfigTabState extends ConsumerState<ConfigTab> {
         return;
       }
 
-      // Llamar al método actualizarCuenta del controlador
-      final ok = await configController.actualizarCuenta(
+      // Llamar al método guardarCambios del controlador
+      final ok = await configController.guardarCambios(
         configController.contrasenaController.text.isNotEmpty
             ? configController.contrasenaController.text
             : null,

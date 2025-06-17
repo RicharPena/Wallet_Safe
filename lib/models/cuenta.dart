@@ -1,136 +1,126 @@
-import 'package:flutter/foundation.dart'; // Importar para ChangeNotifier
-import 'package:wallet_safe/models/perfil.dart';
-import 'package:wallet_safe/models/titular.dart';
-import 'package:wallet_safe/models/familia.dart';
-import 'package:wallet_safe/services/cuenta_service.dart';
+class Cuenta {
+  final int id;
+  final String name;
+  final String email;
 
-// 1. Extender ChangeNotifier
-class Cuenta extends ChangeNotifier {
-  final int? id;
-  String name;
-  String email;
-  final String? password;
+  // La lista de perfiles que viene del backend ahora es una lista de mapas (metadatos).
+  // Es final porque la lista en sí no mutará; si se añaden/eliminan perfiles,
+  // se creará una nueva instancia de Cuenta con una nueva lista de metadatos.
+  final List<Map<String, dynamic>> perfilesMetadata;
 
-  // 2. Hacer la lista perfiles privada para controlar su mutación a través de métodos
-  final List<Perfil> _perfiles = [];
+  // Constructor
+  Cuenta({
+    required this.id, // El ID de la cuenta siempre debe estar presente al crear una instancia.
+    required this.name,
+    required this.email,
+    this.perfilesMetadata =
+        const [], // Valor por defecto: lista vacía inmutable
+  });
 
-  // Opcional pero recomendado: un getter para acceder a la lista inmutablemente desde fuera
-  List<Perfil> get perfiles =>
-      List.unmodifiable(_perfiles); // Retorna una copia no modificable
-
-  // 3. Eliminar static Cuenta? cuentaActiva; ya que Riverpod lo gestionará.
-  // static Cuenta? cuentaActiva; // ¡Eliminar o comentar!
-
-  // Constructor: crea el Titular como el primer perfil
-  Cuenta({this.id, required this.name, required this.email, this.password}) {
-    _perfiles.add(Titular(id: 0, nombre: 'Titular'));
-  }
-
-  /// Obtener el titular
-  Titular get titular => _perfiles.firstWhere((p) => p is Titular) as Titular;
-
-  /// Obtener todos los perfiles tipo Familia
-  List<Familia> get familiares =>
-      _perfiles.whereType<Familia>().toList(growable: false);
-
-  /// Agregar un perfil tipo Familia
-  void agregarFamiliar(String nombreFamiliar) {
-    // Generar un ID simple. Considera un ID más robusto si lo necesitas.
-    final nuevoFamiliar = Familia(
-      id: _perfiles.length + 1,
-      nombre: nombreFamiliar,
-    );
-    _perfiles.add(nuevoFamiliar);
-    // 4. ¡Notificar a los listeners del cambio!
-    notifyListeners();
-  }
-
-  // Simulación de base de datos (mantener si es relevante para tus tests/mockups)
-  static final List<Cuenta> _cuentas = [];
-
-  //Guarda los datos en la base de datos
-  static void registrar(Cuenta cuenta) {
-    _cuentas.add(cuenta);
-  }
-
-  // MÉTODO PARA INICIAR SESION
-  // Este método estático no necesita modificar la instancia de Cuenta.
-  // El consumer en LoginView usará el StateNotifier para establecer la cuenta.
-  static Future<Cuenta?> iniciarSesion(String correo, String contrasena) async {
-    final response = await CuentaService().login(correo, contrasena);
-
-    if (response['estado'] == 'ok') {
-      final usuario = response['usuario'];
-      final cuenta = Cuenta(
-        id: usuario['id'],
-        name: usuario['nombre'],
-        email: usuario['correo'],
-        password: contrasena, // Asegúrate de que el password sea necesario aquí
-      );
-      // ¡Eliminar o comentar! cuentaActiva = cuenta;
-      return cuenta;
-    } else {
-      return null;
-    }
-  }
-
-  // MÉTODO PARA REGISTRARSE
-  // Similar a iniciarSesion, no necesita modificar la instancia de Cuenta.
-  static Future<String> registrarCuentaRemota({
-    required String name,
-    required String email,
-    required String password,
-  }) async {
-    final response = await CuentaService().registrar({
-      'nombre': name,
-      'correo': email,
-      'contrasena': password,
-    });
-
-    if (response['estado'] == 'ok') {
-      final cuenta = Cuenta(name: name, email: email, password: password);
-      _cuentas.add(cuenta); // Si _cuentas es para simulación local, manténlo
-      return 'Registro exitoso';
-    } else {
-      return response['mensaje'] ?? 'Error desconocido';
-    }
-  }
-
-  // MÉTODO PARA EDITAR CUENTA
+  /// Factory constructor para crear una instancia de Cuenta desde un mapa JSON.
+  /// Ideal para recibir datos de la API (ej. respuesta del login).
   factory Cuenta.fromJson(Map<String, dynamic> json) {
-    // Cuando creas una Cuenta desde JSON, debes asegurarte de cargar los perfiles
-    // si están disponibles en la respuesta del servidor.
-    // Esto es un placeholder, deberías adaptar cómo se cargan los perfiles.
-    final cuenta = Cuenta(
-      id: int.parse(json['id'].toString()),
+    List<Map<String, dynamic>> loadedPerfilesMetadata = [];
+    if (json['perfiles'] != null && json['perfiles'] is List) {
+      // Nos aseguramos de que 'perfiles' sea una lista de mapas
+      loadedPerfilesMetadata = List<Map<String, dynamic>>.from(
+        json['perfiles'],
+      );
+    }
+
+    return Cuenta(
+      id: int.parse(json['id'].toString()), // Asegurarse de que el ID es un int
       name: json['nombre'],
       email: json['correo'],
+      perfilesMetadata: loadedPerfilesMetadata,
     );
-    // Ejemplo: Si el JSON tuviera 'perfiles':
-    // if (json['perfiles'] != null) {
-    //   for (var pJson in json['perfiles']) {
-    //     cuenta._perfiles.add(Perfil.fromJson(pJson)); // Necesitarías Perfil.fromJson
-    //   }
-    // }
-    return cuenta;
   }
 
+  /// Método para convertir una instancia de Cuenta a un mapa JSON.
+  /// Útil para enviar datos al backend (ej. para actualizar la cuenta).
   Map<String, dynamic> toJson() {
-    // Cuando serializas a JSON, también deberías incluir los perfiles.
-    // Esto es un placeholder.
     return {
       'id': id,
       'nombre': name,
       'correo': email,
-      // 'perfiles': _perfiles.map((p) => p.toJson()).toList(), // Necesitarías Perfil.toJson
+      // No incluimos perfilesMetadata aquí, ya que el backend no suele
+      // esperar una lista de perfiles completa al actualizar la cuenta.
+      // Si la API lo requiere, se añadiría aquí.
     };
   }
 
-  static Cuenta? obtenerCuenta(String email) {
+  // --- Métodos Auxiliares para acceder a metadatos de perfiles ---
+
+  /// Getter para obtener los metadatos del perfil titular (asumiendo que el primero es el titular)
+  /// O, si tu backend retorna un campo 'tipo' en los metadatos, podrías filtrar por 'tipo'.
+  Map<String, dynamic>? get titularMetadata {
+    // Si tu backend garantiza que el titular es el primero o tiene un campo 'tipo'
+    // if (perfilesMetadata.isNotEmpty && perfilesMetadata.first['tipo'] == 'Titular') {
+    //   return perfilesMetadata.first;
+    // }
+    // Por ahora, asumimos que el primer perfil en la lista es el titular.
+    return perfilesMetadata.isNotEmpty ? perfilesMetadata.first : null;
+  }
+
+  /// Getter para obtener los metadatos de los perfiles familiares
+  /// (asumiendo que son todos menos el titular).
+  List<Map<String, dynamic>> get familiaresMetadata {
+    // Si tu backend retorna un campo 'tipo' en los metadatos, podrías filtrar por 'tipo'.
+    // return perfilesMetadata.where((p) => p['tipo'] == 'Familia').toList();
+    // Por ahora, asumimos que son todos excepto el primer elemento.
+    return perfilesMetadata.length > 1 ? perfilesMetadata.sublist(1) : [];
+  }
+
+  /// Método para obtener los metadatos de un perfil por su ID.
+  Map<String, dynamic>? getPerfilMetadataPorId(int perfilId) {
     try {
-      return _cuentas.firstWhere((c) => c.email == email);
+      return perfilesMetadata.firstWhere((p) => p['id'] == perfilId);
     } catch (e) {
+      // No se encontró el perfil con ese ID
       return null;
     }
   }
+
+  Cuenta copyWith({
+    int? id,
+    String? name,
+    String? email,
+    List<Map<String, dynamic>>? perfilesMetadata,
+  }) {
+    return Cuenta(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      email: email ?? this.email,
+      perfilesMetadata: perfilesMetadata ?? this.perfilesMetadata,
+    );
+  }
+
+  // --- Métodos que deben ser eliminados o movidos ---
+
+  // Eliminar: static final List<Cuenta> _cuentas = [];
+  // Ya que estamos usando un backend, no hay una simulación local de cuentas.
+
+  // Eliminar: static void registrar(Cuenta cuenta) { _cuentas.add(cuenta); }
+  // La lógica de registro es responsabilidad de CuentaService.
+
+  // Eliminar: static Future<Cuenta?> iniciarSesion(...)
+  // La lógica de inicio de sesión es responsabilidad de CuentaService.
+
+  // Eliminar: static Future<String> registrarCuentaRemota(...)
+  // La lógica de registro es responsabilidad de CuentaService.
+
+  // Eliminar: static Cuenta? obtenerCuenta(String email)
+  // La lógica de obtener una cuenta es responsabilidad de CuentaService.
+
+  // Eliminar: Perfil? getPerfilPorId(int perfilId)
+  // Esta lógica ahora la manejará PerfilActivoNotifier al cargar el Perfil completo.
+  // La Cuenta solo tiene los metadatos (id, nombre).
+
+  // Eliminar: void agregarFamiliar(String nombreFamiliar)
+  // Ya que Cuenta es inmutable, no puede mutar _perfiles.
+  // Agregar un familiar significaría:
+  // 1. Llamar al backend para registrar el familiar.
+  // 2. Recibir la nueva lista de perfilesMetadata del backend.
+  // 3. Crear una *nueva instancia* de Cuenta con la lista de metadatos actualizada.
+  // Esto lo manejará el CuentaActivaNotifier.
 }

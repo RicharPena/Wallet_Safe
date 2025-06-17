@@ -1,20 +1,11 @@
+// lib/views/profiles.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wallet_safe/models/cuenta.dart';
 import 'package:wallet_safe/models/perfil.dart';
 import 'package:wallet_safe/views/homePage.dart' hide IterableExtension;
-import '../providers/app_providers.dart';
-
-// Extensión para firstWhereOrNull, la mantendremos aquí por ahora si es global.
-// Si solo se usa en ProfileViews, podrías moverla dentro del archivo si prefieres.
-extension IterableExtension<T> on Iterable<T> {
-  T? firstWhereOrNull(bool Function(T element) test) {
-    for (T element in this) {
-      if (test(element)) return element;
-    }
-    return null;
-  }
-}
+import 'package:wallet_safe/providers/app_providers.dart';
+import 'package:wallet_safe/services/perfil_service.dart';
 
 class ProfileViews extends ConsumerStatefulWidget {
   const ProfileViews({super.key});
@@ -24,14 +15,9 @@ class ProfileViews extends ConsumerStatefulWidget {
 }
 
 class _ProfileViewsState extends ConsumerState<ProfileViews> {
-  @override
-  void initState() {
-    super.initState();
-  }
-
-  void _agregarPerfil(Cuenta cuentaActual) {
+  Future<void> _createFamiliaProfile(Cuenta cuentaActual) async {
     String nuevoNombre = '';
-    showDialog(
+    await showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
@@ -44,19 +30,101 @@ class _ProfileViewsState extends ConsumerState<ProfileViews> {
           ),
           actions: [
             TextButton(
-              onPressed: () {
+              onPressed: () async {
                 if (nuevoNombre.trim().isNotEmpty &&
-                    cuentaActual.perfiles.length < 4) {
-                  // Asumimos que `agregarFamiliar` modifica la lista de perfiles
-                  // directamente en el objeto Cuenta. Si `Cuenta` es un
-                  // ChangeNotifier, esto notificará a `cuentaActivaProvider`
-                  // para que reconstruya `ProfileViews`. Si `Cuenta` es inmutable,
-                  // necesitarías crear una nueva instancia de Cuenta con los perfiles
-                  // actualizados y luego llamar a `ref.read(cuentaActivaProvider.notifier).setCuenta(nuevaCuenta)`.
-                  setState(() {
-                    cuentaActual.agregarFamiliar(nuevoNombre.trim());
-                  });
-                  Navigator.pop(context);
+                    cuentaActual.perfilesMetadata.length < 4) {
+                  try {
+                    final perfilService = ref.read(perfilServiceProvider);
+                    final response = await perfilService.crearPerfil(
+                      nuevoNombre.trim(),
+                      cuentaActual.id,
+                      'familiar',
+                    );
+
+                    if (response['estado'] == 'ok' && mounted) {
+                      // --- INICIO DE LA CORRECCIÓN ---
+                      // ¡ELIMINAMOS LA LLAMADA A perfilService.login AQUÍ!
+
+                      // Asumimos que el backend de 'crearPerfil' devuelve el ID del perfil creado.
+                      // Por ejemplo: {'estado': 'ok', 'mensaje': 'Perfil creado', 'id_perfil_creado': 123}
+                      final int? newProfileId = int.tryParse(
+                        response['id_perfil_creado']?.toString() ?? '',
+                      );
+
+                      if (newProfileId != null) {
+                        final newProfileName = nuevoNombre.trim();
+                        final newProfileMetadata = {
+                          'id': newProfileId,
+                          'nombre': newProfileName,
+                          'tipo':
+                              'familiar', // Asegúrate de que este tipo coincida con tu backend
+                        };
+
+                        // Crear una nueva lista de metadatos de perfiles con el nuevo perfil.
+                        final List<Map<String, dynamic>> updatedMetadataList =
+                            List<Map<String, dynamic>>.from(
+                              cuentaActual.perfilesMetadata,
+                            )..add(newProfileMetadata);
+
+                        // Crear una nueva instancia de Cuenta con los metadatos actualizados.
+                        final updatedCuenta = cuentaActual.copyWith(
+                          perfilesMetadata: updatedMetadataList,
+                        );
+
+                        // Actualizar el estado de cuentaActivaProvider con la nueva Cuenta.
+                        ref
+                            .read(cuentaActivaProvider.notifier)
+                            .setCuenta(updatedCuenta);
+
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'Perfil "$newProfileName" creado con éxito.',
+                            ),
+                          ),
+                        );
+                        Navigator.pop(context); // Cierra el diálogo
+                      } else {
+                        // Si el backend no devuelve el ID del nuevo perfil, hay un problema.
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'Error: No se pudo obtener el ID del perfil creado. ${response['mensaje']}',
+                            ),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                      // --- FIN DE LA CORRECCIÓN ---
+                    } else if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            response['mensaje'] ?? 'Error al crear perfil.',
+                          ),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    debugPrint('Error al crear perfil familiar: $e');
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Error: ${e.toString()}'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  }
+                } else if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Nombre de perfil inválido o límite alcanzado.',
+                      ),
+                    ),
+                  );
                 }
               },
               child: const Text('Crear'),
@@ -67,23 +135,23 @@ class _ProfileViewsState extends ConsumerState<ProfileViews> {
     );
   }
 
-  Widget _buildPerfilCard(Perfil perfil) {
-    return GestureDetector(
-      onTap: () {
-        // Usa ref.read para obtener el notifier y establecer el perfil seleccionado globalmente
-        ref.read(perfilSeleccionadoProvider.notifier).setPerfil(perfil);
+  Widget _buildPerfilCard(Map<String, dynamic> perfilMetadata) {
+    final int perfilId = perfilMetadata['id'] as int;
+    final String perfilNombre = perfilMetadata['nombre'] as String;
 
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder:
-                (context) =>
-                    HomePage(), // HomePage no necesita un ProviderScope aquí
-          ),
-        );
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Entraste con el perfil: ${perfil.nombre}')),
-        );
+    return GestureDetector(
+      onTap: () async {
+        await ref.read(perfilActivoProvider.notifier).setPerfilActivo(perfilId);
+
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => HomePage()),
+          );
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Entraste con el perfil: $perfilNombre')),
+          );
+        }
       },
       child: Container(
         width: 140,
@@ -95,7 +163,7 @@ class _ProfileViewsState extends ConsumerState<ProfileViews> {
         ),
         alignment: Alignment.center,
         child: Text(
-          perfil.nombre,
+          perfilNombre,
           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
       ),
@@ -104,7 +172,7 @@ class _ProfileViewsState extends ConsumerState<ProfileViews> {
 
   Widget _buildAgregarPerfilCard(Cuenta cuentaActual) {
     return GestureDetector(
-      onTap: () => _agregarPerfil(cuentaActual),
+      onTap: () => _createFamiliaProfile(cuentaActual),
       child: Container(
         width: 140,
         height: 100,
@@ -115,7 +183,6 @@ class _ProfileViewsState extends ConsumerState<ProfileViews> {
         ),
         alignment: Alignment.center,
         child: const Column(
-          // Añadido 'const' para optimización
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.add, size: 30, color: Colors.black54),
@@ -129,33 +196,12 @@ class _ProfileViewsState extends ConsumerState<ProfileViews> {
 
   @override
   Widget build(BuildContext context) {
-    // ref.watch() aquí es para que ProfileViews se reconstruya si la cuenta cambia.
-    // Esto es importante si el método `agregarFamiliar` modifica la `Cuenta` de forma que notifica.
-    print('--- ProfileViews: Reconstruyendo ---');
     final Cuenta? cuentaActual = ref.watch(cuentaActivaProvider);
-    print(
-      'ProfileViews - cuentaActual: ${cuentaActual != null ? "Disponible" : "NULL"}',
-    );
 
-    // Muestra un indicador de carga o un mensaje si la cuenta aún es null (aunque no debería pasar aquí)
     if (cuentaActual == null) {
-      print(
-        'ProfileViews - ERROR: cuentaActual es NULL después de salir de perfil.',
-      );
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    print(
-      'ProfileViews - Número de perfiles en cuentaActual: ${cuentaActual.perfiles.length}',
-    );
-    if (cuentaActual.perfiles.isEmpty) {
-      print(
-        'ProfileViews - Advertencia: La lista de perfiles de la cuenta está vacía.',
-      );
-      // Si la lista de perfiles está vacía (aunque tu constructor de Cuenta
-      // siempre añade un 'Titular'), esto podría ser un punto de fallo si
-      // la data no se carga correctamente.
-    }
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -174,8 +220,10 @@ class _ProfileViewsState extends ConsumerState<ProfileViews> {
                 runSpacing: 20,
                 alignment: WrapAlignment.center,
                 children: [
-                  ...cuentaActual.perfiles.map(_buildPerfilCard).toList(),
-                  if (cuentaActual.perfiles.length < 4)
+                  ...cuentaActual.perfilesMetadata
+                      .map(_buildPerfilCard)
+                      .toList(),
+                  if (cuentaActual.perfilesMetadata.length < 4)
                     _buildAgregarPerfilCard(cuentaActual),
                 ],
               ),

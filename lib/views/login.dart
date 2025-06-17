@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart'; // Importa ConsumerStatefulWidget
-import 'package:wallet_safe/models/cuenta.dart';
+import 'package:wallet_safe/models/cuenta.dart'; // Mantener si la clase Cuenta se usa para el tipo
 import 'package:wallet_safe/views/profiles.dart';
 import 'package:wallet_safe/views/register.dart';
 import 'package:wallet_safe/providers/app_providers.dart'; // ¡Importa tus providers!
@@ -25,70 +25,77 @@ class _LoginViewState extends ConsumerState<LoginView> {
     final contrasena = passwordController.text;
 
     try {
-      final cuenta = await Cuenta.iniciarSesion(correo, contrasena);
+      // 1. Obtener la instancia de PerfilService a través de Riverpod
+      final perfilService = ref.read(perfilServiceProvider);
 
-      if (cuenta != null) {
-        // Usa ref.read para obtener el notifier y actualizar la Cuenta activa globalmente.
-        // Esto sobrescribe el estado del provider en el ProviderScope raíz.
+      // 2. Llamar al método iniciarSesion del PerfilService
+      // Este método retorna un Map<String, dynamic> que incluye el estado y la Cuenta.
+      final response = await perfilService.login(correo, contrasena);
+
+      if (response['estado'] == 'ok' && response['cuenta'] != null) {
+        // Asumiendo que 'cuenta' en la respuesta es un Map y puede ser convertido a una instancia de Cuenta
+        final Cuenta cuenta = Cuenta.fromJson(response['cuenta']);
+
+        // 3. Usa ref.read para obtener el notifier y actualizar la Cuenta activa globalmente.
         ref.read(cuentaActivaProvider.notifier).setCuenta(cuenta);
 
-        // Navega a ProfileViews sin un ProviderScope, ya que el estado se maneja globalmente.
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const ProfileViews()),
-        );
+        // 4. Navega a ProfileViews sin permitir volver al login
+        if (mounted) {
+          Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => const ProfileViews()),
+            (route) => false, // Elimina todas las rutas anteriores
+          );
+        }
       } else {
-        _mostrarError('Correo o contraseña incorrectos');
+        // Manejar errores de credenciales inválidas o otros errores del servidor
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(response['mensaje'] ?? 'Credenciales incorrectas.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     } catch (e) {
-      _mostrarError(
-        'Fallo en la conexión con el servidor: $e',
-      ); // Mostrar el error para depurar
+      // Manejar errores generales (ej. de conexión a internet)
+      debugPrint('Error durante el login: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al iniciar sesión: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
-  }
-
-  void _mostrarError(String mensaje) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(mensaje),
-        backgroundColor: Colors.redAccent,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    emailController.dispose();
-    passwordController.dispose();
-    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 255, 255, 255),
-      body: Padding(
-        padding: const EdgeInsets.all(20.0),
+      appBar: AppBar(title: const Text('Iniciar Sesión')),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
-              // Añadido 'const' para optimización
-              'Wallet Safe',
-              style: TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-                color: Color.fromARGB(255, 108, 238, 47),
-              ),
+            // Logo o imagen de la aplicación (opcional)
+            Icon(
+              Icons.account_balance_wallet, // Ejemplo de ícono
+              size: 100,
+              color: Theme.of(context).primaryColor,
             ),
-            const SizedBox(height: 60),
+            const SizedBox(height: 40),
             TextField(
               controller: emailController,
               decoration: const InputDecoration(
-                labelText: 'Correo',
+                labelText: 'Correo Electrónico',
                 border: OutlineInputBorder(),
               ),
             ),
@@ -111,7 +118,6 @@ class _LoginViewState extends ConsumerState<LoginView> {
             ),
             const SizedBox(height: 10),
             const Row(
-              // Añadido 'const' para optimización
               children: [
                 Expanded(child: Divider(thickness: 1)),
                 Padding(

@@ -1,22 +1,41 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:wallet_safe/models/perfil.dart';
 import '../models/familia.dart';
 import '../models/presupuesto_familiar.dart';
 import '../models/presupuesto_personal.dart';
-
-// Contador estático para generar IDs únicos temporales para los presupuestos
-// En una aplicación real, esto lo gestionaría el backend/base de datos.
-int _nextLocalBudgetId = 0;
-int _getNextLocalBudgetId() {
-  _nextLocalBudgetId++;
-  return _nextLocalBudgetId;
-}
+import '../services/perfil_service.dart'; // Importamos el servicio
 
 // Definimos un StateNotifier para nuestro FamiliaViewModel
 class FamiliaViewModel extends StateNotifier<Familia?> {
-  FamiliaViewModel() : super(null);
+  final PerfilService _perfilService; // Inyectamos el servicio
+  final Function(Perfil)
+  _updatePerfilInNotifier; // Callback para actualizar el PerfilActivoNotifier
+
+  FamiliaViewModel({
+    required PerfilService perfilService,
+    required Function(Perfil) updatePerfilInNotifier,
+  }) : _perfilService = perfilService,
+       _updatePerfilInNotifier = updatePerfilInNotifier,
+       super(null);
 
   void cargarFamilia(Familia familia) {
     state = familia;
+    debugPrint('FamiliaViewModel: Familia cargada: ${familia.nombre}');
+    debugPrint(
+      'FamiliaViewModel: Presupuestos familiares en la familia cargada: ${familia.cnPresupuestosFamiliares.length}',
+    );
+    if (familia.cnPresupuestosFamiliares.isEmpty) {
+      debugPrint(
+        'FamiliaViewModel: La lista cnPresupuestosFamiliares ESTÁ VACÍA.',
+      );
+    }
+    // Puedes incluso imprimir el contenido si no es muy grande
+    for (var p in familia.cnPresupuestosFamiliares) {
+      debugPrint(
+        '  - Presupuesto Familiar: ${p.categoria}, Monto: ${p.montoAsignado}, Distribuido: ${p.distribuido}',
+      );
+    }
   }
 
   PresupuestoFamiliar? getPresupuestoFamiliarPendiente() {
@@ -30,53 +49,95 @@ class FamiliaViewModel extends StateNotifier<Familia?> {
     }
   }
 
+  void resetFamilia() {
+    state = null;
+    debugPrint('FamiliaViewModel: Estado reseteado (Familia = null).');
+  }
+
+  List<PresupuestoPersonal> get presupuestosPersonalesDeFamiliares {
+    if (state == null) return [];
+    return state!.cnPresupuestosPersonales
+        .where((pp) => pp.idPresupuestoFamiliarOrigen != null)
+        .toList();
+  }
+
   // Método para procesar la subdivisión de un presupuesto familiar
-  void procesarPresupuestoFamiliar(
+  Future<void> procesarPresupuestoFamiliar(
     PresupuestoFamiliar presupuestoFamiliar,
     List<Map<String, dynamic>> subdivisiones,
-  ) {
+  ) async {
     if (state == null) return;
 
-    // Crear una copia de la familia para realizar modificaciones inmutables
-    // Aunque nuestro modelo Familia es mutable, esta es una buena práctica
-    // para los StateNotifiers de Riverpod para asegurar la reactividad.
-    Familia familiaActualizada = Familia(
-      id: state!.id,
-      nombre: state!.nombre,
-      balance: state!.balance,
-      cnIngresos: List.from(state!.cnIngresos), // Copiar listas
-      cnGastos: List.from(state!.cnGastos),
-      cnPresupuestosPersonales: List.from(state!.cnPresupuestosPersonales),
-      cnPresupuestosFamiliares: List.from(state!.cnPresupuestosFamiliares),
-    );
-
-    double totalDistribuido = 0;
+    // Crear una copia de la familia para realizar las modificaciones
+    Familia familiaActualizada = state!.copyWith();
     List<PresupuestoPersonal> nuevosPresupuestosPersonales = [];
+    double totalDistribuido = 0;
 
     for (var sub in subdivisiones) {
-      double montoSub = sub['monto'] as double;
-      String categoriaSub = sub['categoria'] as String;
+      final String categoriaSub =
+          sub['categoria']; // Corregido: 'categoria' en notificacion_presupuesto.dart
+      final double montoSub = sub['monto'];
+      final int perfilIdAsignado =
+          state!.id; // El perfil destino es la familia actual
+      final int asignacionId =
+          presupuestoFamiliar
+              .id; // El ID del presupuesto familiar es el asignacion_id
 
-      PresupuestoPersonal nuevoPresupuesto = PresupuestoPersonal(
-        id: _getNextLocalBudgetId(), // Generar un ID entero único
-        montoAsignado: montoSub,
-        categoria: categoriaSub,
-        perfilId: familiaActualizada.id,
-        idPresupuestoFamiliarOrigen:
-            presupuestoFamiliar.id, // Referencia al origen
+      // Registrar el detalle del presupuesto en el backend
+      final response = await _perfilService.agregarPresupuestoPersonal(
+        perfilIdAsignado,
+        categoriaSub,
+        montoSub,
+        asignacionId,
       );
-      nuevosPresupuestosPersonales.add(nuevoPresupuesto);
-      totalDistribuido += montoSub;
+
+      if (response['estado'] == 'ok' && response['detalle_id'] != null) {
+        final int detalleId = int.parse(response['detalle_id'].toString());
+        final double montoTotal = double.parse(
+          response['montoTotal'].toString(),
+        );
+
+        final nuevoPresupuesto = PresupuestoPersonal(
+          id: detalleId, // Usamos el ID devuelto por el backend
+          montoAsignado: montoSub,
+          montoTotal: montoTotal, //Para que después se construya
+          categoria: categoriaSub,
+          perfilId: perfilIdAsignado,
+          idPresupuestoFamiliarOrigen:
+              presupuestoFamiliar.id, // Referencia al origen
+        );
+        nuevosPresupuestosPersonales.add(nuevoPresupuesto);
+        totalDistribuido += montoSub;
+      } else {
+        // Manejar el error si el registro del detalle falla
+        print(
+          'Error al registrar detalle de presupuesto: ${response['mensaje']}',
+        );
+        // Si falla un detalle, podrías decidir si quieres revertir los anteriores
+        // o simplemente continuar y mostrar un mensaje de error parcial.
+        // Por ahora, simplemente imprimimos el error y continuamos.
+      }
     }
 
-    familiaActualizada.cnPresupuestosPersonales.addAll(
-      nuevosPresupuestosPersonales,
+    // Actualizar los presupuestos personales de la familia
+    familiaActualizada = familiaActualizada.copyWith(
+      cnPresupuestosPersonales: [
+        ...familiaActualizada.cnPresupuestosPersonales,
+        ...nuevosPresupuestosPersonales,
+      ],
     );
-    familiaActualizada.balance += totalDistribuido;
+
+    // Actualizar el balance de la familia con el total distribuido
+    // Esto asume que el monto distribuido de un presupuesto familiar se suma al balance de la familia.
+    // Si el balance ya se maneja en el backend al registrar los detalles, esto podría ser redundante o necesitar ajuste.
+    familiaActualizada = familiaActualizada.copyWith(
+      balance: familiaActualizada.balance + totalDistribuido,
+    );
 
     // Marcar el presupuesto familiar original como distribuido
-    // Buscamos la instancia exacta del presupuesto familiar en la lista de la familia actualizada
-    // para modificar su propiedad 'distribuido'.
+    // Asumiendo que no hay una acción específica en PerfilService para "marcar como distribuido"
+    // y que la distribución se considera completa una vez que los detalles se registran.
+    // Si necesitas una llamada al backend para esto, deberías implementarla en PerfilService.
     final index = familiaActualizada.cnPresupuestosFamiliares.indexWhere(
       (pf) => pf.id == presupuestoFamiliar.id,
     );
@@ -84,22 +145,31 @@ class FamiliaViewModel extends StateNotifier<Familia?> {
       familiaActualizada.cnPresupuestosFamiliares[index] = PresupuestoFamiliar(
         id: presupuestoFamiliar.id,
         montoAsignado: presupuestoFamiliar.montoAsignado,
+        montoTotal: presupuestoFamiliar.montoTotal,
         categoria: presupuestoFamiliar.categoria,
         idPerfilFamiliar: presupuestoFamiliar.idPerfilFamiliar,
         idTitular: presupuestoFamiliar.idTitular,
         distribuido: true, // Marcar como distribuido
       );
+      print(
+        'Presupuesto familiar ${presupuestoFamiliar.id} marcado como distribuido localmente.',
+      );
     }
 
     state = familiaActualizada; // Actualizar el estado con la nueva familia
-    print(
-      'Presupuesto familiar ${presupuestoFamiliar.id} distribuido y balance actualizado.',
-    );
+
+    // Después de cualquier operación que cambie el perfil, recarga o actualiza el perfil activo
+    // Esto es crucial para que la UI se actualice con los nuevos presupuestos y balance.
+    final updatedPerfil = await _perfilService.getPerfilById(
+      state!.id,
+    ); // Obtener el perfil familiar actualizado
+    if (updatedPerfil != null) {
+      _updatePerfilInNotifier(updatedPerfil);
+      print('Perfil familiar actualizado en el notifier.');
+    } else {
+      print(
+        'Error al recargar el perfil actualizado después de la distribución.',
+      );
+    }
   }
 }
-
-// Proveedor que expone el FamiliaViewModel a la aplicación
-final familiaViewModelProvider =
-    StateNotifierProvider.autoDispose<FamiliaViewModel, Familia?>(
-      (ref) => FamiliaViewModel(),
-    );

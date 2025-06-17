@@ -1,17 +1,12 @@
-import 'package:wallet_safe/models/presupuesto_personal.dart'; // Importa la nueva clase
-import 'package:wallet_safe/models/presupuesto_familiar.dart'; // Importa la nueva clase
-import 'perfil.dart';
-import 'ingresos.dart';
-import 'familia.dart';
+import 'package:flutter/foundation.dart';
+import 'package:wallet_safe/models/perfil.dart';
+import 'package:wallet_safe/models/familia.dart'; // No se usará directamente aquí, pero es bueno tenerlo si aplica en otros lugares
+import 'package:wallet_safe/models/ingresos.dart';
+import 'package:wallet_safe/models/gastos.dart';
+import 'package:wallet_safe/models/presupuesto_personal.dart';
+import 'package:wallet_safe/models/presupuesto_familiar.dart';
 
-// Contador estático para generar IDs únicos temporales
-// En una aplicación real, esto lo gestionaría el backend/base de datos.
-int _nextPresupuestoId = 0;
-int _getNextPresupuestoId() {
-  _nextPresupuestoId++;
-  return _nextPresupuestoId;
-}
-
+@immutable // Importante: marca la clase como inmutable
 class Titular extends Perfil {
   Titular({
     required super.id,
@@ -23,73 +18,71 @@ class Titular extends Perfil {
     super.cnPresupuestosFamiliares,
   });
 
-  /// Agrega un ingreso al titular y actualiza el balance
+  // Métodos de acción (implementaciones concretas para Titular)
+  // Como se indicó anteriormente, la lógica de mutación debe manejarse con copyWith
+  // en el StateNotifier que gestiona este objeto inmutable.
+  // Aquí solo se provee una implementación básica para satisfacer la interfaz abstracta.
   @override
   void agregarIngreso(Ingreso ingreso) {
-    cnIngresos.add(ingreso);
-    balance += ingreso.monto;
-    print(
-      'Ingreso de $ingreso.monto añadido a Titular $nombre. Nuevo balance: $balance',
+    debugPrint(
+      'Titular: Intentando agregar ingreso ${ingreso.monto}. Esta operación debe ser manejada por un Notifier que devuelva una nueva instancia.',
     );
   }
 
-  /// Asigna una cantidad de dinero a un perfil tipo Familia
-  bool asignarPresupuestoAFamilia(
-    Familia familiar,
-    double monto,
-    String categoria,
-  ) {
-    if (monto <= 0) {
-      print('El monto a asignar debe ser positivo.');
-      return false;
-    }
-    if (monto > balance) {
-      print('El monto supera tu balance disponible.');
-      return false;
-    }
-
-    // Generar un ID simple para el presupuesto familiar (esto cambiará con el backend)
-    int presupuestoFamiliarId = _getNextPresupuestoId();
-
-    //Crea el presupuesto familiar
-    PresupuestoFamiliar nuevoPresupuestoFamiliar = PresupuestoFamiliar(
-      id: presupuestoFamiliarId,
-      montoAsignado: monto,
-      categoria: categoria,
-      idPerfilFamiliar: familiar.id,
-      idTitular: id,
-      distribuido: false, // Por defecto, no distribuido al crearse
+  @override
+  void agregarGasto(Gasto gasto) {
+    debugPrint(
+      'Titular: Intentando agregar gasto ${gasto.monto}. Esta operación debe ser manejada por un Notifier que devuelva una nueva instancia.',
     );
-
-    // Asignar el presupuesto a la familia
-    familiar.agregarPresupuestoFamiliar(nuevoPresupuestoFamiliar);
-    // Añadir el presupuesto familiar a la lista de presupuestos familiares del titular (para seguimiento)
-    cnPresupuestosFamiliares.add(nuevoPresupuestoFamiliar);
-
-    // Restar el monto del balance del titular
-    balance -= monto;
-    print(
-      'Presupuesto de \$$monto para ${familiar.nombre} en categoría "$categoria" asignado.',
-    );
-    return true;
   }
 
-  // *** Implementación de agregarPresupuestoPersonal para Titular ***
   @override
   void agregarPresupuestoPersonal(PresupuestoPersonal presupuesto) {
-    if (presupuesto.perfilId != id) {
-      throw ArgumentError(
-        'Este presupuesto personal no pertenece a este perfil titular.',
-      );
-    }
-    cnPresupuestosPersonales.add(presupuesto);
+    debugPrint(
+      'Titular: Intentando agregar presupuesto personal ${presupuesto.montoAsignado}. Esta operación debe ser manejada por un Notifier que devuelva una nueva instancia.',
+    );
   }
 
-  // *** Implementación de agregarPresupuestoFamiliar para Titular (para registrar los que asigna) ***
   @override
   void agregarPresupuestoFamiliar(PresupuestoFamiliar presupuesto) {
-    // Un titular agrega presupuestos familiares a otros, pero también los registra
-    // en su propia lista para llevar un control de lo que ha asignado.
-    cnPresupuestosFamiliares.add(presupuesto);
+    debugPrint(
+      'Titular: Intentando agregar presupuesto familiar ${presupuesto.montoAsignado}. Esta operación debe ser manejada por un Notifier que devuelva una nueva instancia.',
+    );
+  }
+
+  @override
+  Titular copyWith({
+    int? id,
+    String? nombre,
+    double? balance,
+    List<Ingreso>? cnIngresos,
+    List<Gasto>? cnGastos,
+    List<PresupuestoPersonal>? cnPresupuestosPersonales,
+    List<PresupuestoFamiliar>? cnPresupuestosFamiliares,
+  }) {
+    return Titular(
+      id: id ?? this.id,
+      nombre: nombre ?? this.nombre,
+      balance: balance ?? this.balance,
+      cnIngresos: cnIngresos ?? this.cnIngresos,
+      cnGastos: cnGastos ?? this.cnGastos,
+      cnPresupuestosPersonales:
+          cnPresupuestosPersonales ?? this.cnPresupuestosPersonales,
+      cnPresupuestosFamiliares:
+          cnPresupuestosFamiliares ?? this.cnPresupuestosFamiliares,
+    );
+  }
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'nombre': nombre,
+      'ingresos': cnIngresos.map((i) => i.toJson()).toList(),
+      'gastos': cnGastos.map((g) => g.toJson()).toList(),
+      'presupuestos': cnPresupuestosFamiliares.map((p) => p.toJson()).toList(),
+      'detalles_presupuesto':
+          cnPresupuestosPersonales.map((p) => p.toJson()).toList(),
+    };
   }
 }

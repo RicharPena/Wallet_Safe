@@ -1,84 +1,90 @@
+// lib/controllers/config_tab_controller.dart
 import 'package:flutter/material.dart';
 import 'package:wallet_safe/models/cuenta.dart';
 import 'package:wallet_safe/services/cuenta_service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-// Importante: Mezclamos con ChangeNotifier para que Riverpod pueda escucharlo
-class ConfigTabController with ChangeNotifier {
+class ConfigTabController extends ChangeNotifier {
   final CuentaService _cuentaService = CuentaService();
 
-  // Controladores de texto para los campos del formulario
   final TextEditingController nombreController = TextEditingController();
   final TextEditingController correoController = TextEditingController();
   final TextEditingController contrasenaController = TextEditingController();
   final TextEditingController confirContrasenaController =
       TextEditingController();
 
-  // La cuenta activa que será gestionada por este controlador
-  final Cuenta?
-  _cuentaActiva; // La hacemos privada para usar getter y setter si es necesario
+  Cuenta? _cuentaActiva;
 
-  // Constructor que recibe la cuenta activa
-  ConfigTabController({required Cuenta? cuentaInicial})
-    : _cuentaActiva = cuentaInicial {
-    // Inicializamos los controladores con los datos de la cuenta al crear el controlador
+  final void Function(Cuenta) _updateCuentaInNotifier;
+
+  ConfigTabController({
+    required Cuenta? cuentaInicial,
+    required void Function(Cuenta) updateCuentaInNotifier,
+  }) : _cuentaActiva = cuentaInicial,
+       _updateCuentaInNotifier = updateCuentaInNotifier {
     if (_cuentaActiva != null) {
-      nombreController.text =
-          _cuentaActiva.name; // Usa '!' porque ya verificaste que no es null
-      correoController.text = _cuentaActiva.email; // Usa '!'
+      nombreController.text = _cuentaActiva!.name;
+      correoController.text = _cuentaActiva!.email;
     } else {
-      // Si la cuenta es null, asegúrate de que los controladores estén vacíos
       nombreController.clear();
       correoController.clear();
     }
-    // Las contraseñas no se precargan por seguridad
-
-    // Si la 'Cuenta' misma es un ChangeNotifier y queremos que el controlador reaccione
-    // a cambios externos en la cuenta, podríamos añadir un listener aquí:
-    // _cuentaActiva.addListener(notifyListeners);
-    // Sin embargo, para este caso, las actualizaciones de la cuenta se inician desde este controlador.
   }
 
-  // Getter para acceder a la cuenta activa desde la UI si es necesario
   Cuenta? get cuentaActiva => _cuentaActiva;
 
-  // Método para actualizar la cuenta usando tu CuentaService
-  Future<bool> actualizarCuenta(String? nuevaContrasena) async {
-    // Las propiedades de la cuenta se actualizan antes de llamar al servicio
-    _cuentaActiva?.name = nombreController.text.trim();
-    _cuentaActiva?.email = correoController.text.trim();
+  Future<bool> guardarCambios(String? nuevaContrasena) async {
+    if (_cuentaActiva == null) {
+      debugPrint("Error: No hay cuenta activa para guardar cambios.");
+      return false;
+    }
 
+    final String nuevoNombre = nombreController.text.trim();
+    final String nuevoCorreo = correoController.text.trim();
+
+    // Crear una *nueva instancia* de Cuenta con los datos que se intentan guardar
+    // Esto es crucial porque _cuentaActiva es inmutable.
+    final cuentaParaActualizar = _cuentaActiva!.copyWith(
+      name: nuevoNombre,
+      email: nuevoCorreo,
+    );
+
+    // Llama a tu método existente `editarPerfil` de CuentaService
+    // Ahora le pasamos la instancia de `Cuenta` que queremos actualizar
+    // y la posible nueva contraseña.
     final bool success = await _cuentaService.editarPerfil(
-      _cuentaActiva!, // Pasamos la instancia de la cuenta que está siendo editada
-      nuevaContrasena: nuevaContrasena,
+      cuentaParaActualizar, // Le pasamos la nueva instancia de Cuenta
+      nuevaContrasena: nuevaContrasena, // La contraseña va aparte
     );
 
     if (success) {
-      // Notificamos a los listeners que el estado de la cuenta (indirectamente) ha cambiado.
-      // Esto es crucial para que cualquier widget que observe este controlador (o la cuenta a través de él)
-      // se reconstruya y muestre los datos actualizados.
+      // Si la edición en el backend fue exitosa, actualizamos el estado local
+      // y notificamos a Riverpod con la nueva instancia inmutable de Cuenta.
+      _cuentaActiva = cuentaParaActualizar; // Actualiza la referencia local
+      _updateCuentaInNotifier(cuentaParaActualizar); // Notifica a Riverpod
+
       notifyListeners();
+      return true;
+    } else {
+      // Si hubo un error en el backend, los campos locales y la cuenta de Riverpod
+      // no se modifican, y se indica el fallo.
+      debugPrint('Error al guardar cambios a través de editarPerfil.');
+      return false;
     }
-    return success;
   }
 
-  // Método para limpiar los campos de contraseña después de una operación
   void clearPasswordFields() {
     contrasenaController.clear();
     confirContrasenaController.clear();
-    notifyListeners(); // Notifica que los campos han sido limpiados
+    notifyListeners();
   }
 
   @override
   void dispose() {
-    // ¡Muy importante! Liberar los recursos de los TextEditingControllers
     nombreController.dispose();
     correoController.dispose();
     contrasenaController.dispose();
     confirContrasenaController.dispose();
-
-    // Si hubiéramos añadido un listener a _cuentaActiva, lo removeríamos aquí:
-    // _cuentaActiva.removeListener(notifyListeners);
-
-    super.dispose(); // Llama al método dispose de ChangeNotifier
+    super.dispose();
   }
 }

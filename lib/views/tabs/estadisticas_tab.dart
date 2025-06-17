@@ -25,7 +25,16 @@ class _EstadisticasTabState extends ConsumerState<EstadisticasTab> {
   Widget build(BuildContext context) {
     // Observamos el perfil seleccionado usando ref.watch
     // Cada vez que perfilSeleccionadoProvider notifique un cambio, este widget se reconstruirá.
-    final Perfil? perfil = ref.watch(perfilSeleccionadoProvider);
+    final Perfil? perfil = ref.watch(perfilActivoProvider);
+
+    debugPrint('EstadisticasTab: Perfil Activo ID: ${perfil?.id}');
+    debugPrint('EstadisticasTab: Perfil Activo Nombre: ${perfil?.nombre}');
+    debugPrint(
+      'EstadisticasTab: # Ingresos en Perfil: ${perfil?.cnIngresos.length}',
+    );
+    debugPrint(
+      'EstadisticasTab: # Gastos en Perfil: ${perfil?.cnGastos.length}',
+    );
 
     if (perfil == null) {
       return const Center(

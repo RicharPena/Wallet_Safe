@@ -3,9 +3,10 @@ class Ingreso {
   final double monto;
   final DateTime fecha;
   final String descripcion;
-  final String categoria; // Pendiente por cambiar y debatir
+  final String categoria;
   final String tipo;
   final bool automatico;
+  final int perfilId; // Añadir el ID del perfil al que pertenece este ingreso
 
   Ingreso({
     required this.id,
@@ -15,41 +16,63 @@ class Ingreso {
     required this.categoria,
     required this.tipo,
     required this.automatico,
+    required this.perfilId, // Ahora el Ingreso sabe a qué perfil pertenece
   });
 
-  /// Simula guardar un ingreso para un perfil específico (puedes usar perfil.id, por ejemplo)
-  static void registrarIngreso({
-    required int id,
-    required double monto,
-    required String descripcion,
-    required String categoria,
-    required String tipo,
-    required bool automatico,
-  }) {
-    final nuevoIngreso = Ingreso(
-      id: id,
-      monto: monto,
-      fecha: DateTime.now(),
-      descripcion: descripcion,
-      categoria: categoria,
-      tipo: tipo,
-      automatico: automatico,
+  /// Factory constructor para crear una instancia de Ingreso desde un mapa JSON.
+  /// Ideal para recibir datos de la API.
+  factory Ingreso.fromJson(Map<String, dynamic> json) {
+    return Ingreso(
+      id: int.parse(json['id'].toString()), // Asegúrate de parsear el ID
+      monto: double.parse(
+        json['monto'].toString(),
+      ), // Asegúrate de parsear a double
+      fecha: DateTime.parse(
+        json['fecha'],
+      ), // Parsear la fecha de String a DateTime
+      descripcion: json['descripcion'],
+      categoria: json['rubro'],
+      tipo: json['tipo'],
+      automatico: json['automatico'] == 1, // Manejar booleanos
+      perfilId: int.parse(json['perfil_id'].toString()),
     );
-
-    // Aquí irá la lógica para guardar el ingreso (p. ej. en base de datos)
-    // Por ahora, imprimimos
-    print('✅ Ingreso registrado: ${nuevoIngreso.toMap()}');
   }
 
-  Map<String, dynamic> toMap() {
+  /// Método para convertir una instancia de Ingreso a un mapa JSON.
+  /// Ideal para enviar datos a la API.
+  Map<String, dynamic> toJson() {
     return {
       'id': id,
       'monto': monto,
-      'fecha': fecha.toIso8601String(),
+      'fecha': fecha.toIso8601String(), // Formato ISO 8601 para la fecha
       'descripcion': descripcion,
       'categoria': categoria,
       'tipo': tipo,
-      'automatico': automatico,
+      'automatico':
+          automatico ? 1 : 0, // Convertir bool a int (1 o 0) para la DB
+      'perfil_id': perfilId, // Incluir el ID del perfil al que pertenece
     };
+  }
+
+  Ingreso copyWith({
+    int? id,
+    double? monto,
+    bool? automatico,
+    String? tipo,
+    String? rubro,
+    DateTime? fecha,
+    int? perfilId,
+    String? descripcion,
+  }) {
+    return Ingreso(
+      id: id ?? this.id,
+      monto: monto ?? this.monto,
+      automatico: automatico ?? this.automatico,
+      tipo: tipo ?? this.tipo,
+      categoria: rubro ?? this.categoria,
+      fecha: fecha ?? this.fecha,
+      perfilId: perfilId ?? this.perfilId,
+      descripcion: descripcion ?? this.descripcion,
+    );
   }
 }

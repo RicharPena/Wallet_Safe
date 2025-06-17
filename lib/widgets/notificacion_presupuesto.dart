@@ -153,8 +153,21 @@ class _NewFamilyBudgetDialogState extends ConsumerState<NewFamilyBudgetDialog> {
 
     // AHORA OBTENEMOS LA CUENTA Y EL PERFIL (Familia) DESDE LOS PROVIDERS
     final familiaObjetivo =
-        ref.read(perfilSeleccionadoProvider)
-            as Familia; // Aseguramos que es Familia
+        ref.read(perfilActivoProvider) as Familia; // Aseguramos que es Familia
+
+    final cuentaActiva = ref.read(cuentaActivaProvider);
+
+    if (cuentaActiva == null || familiaObjetivo == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Error: No hay cuenta o perfil activo para procesar el presupuesto.',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
 
     // Validar que la familiaObjetivo sea la misma que la del presupuesto familiar
     if (familiaObjetivo.id != widget.presupuestoFamiliar.idPerfilFamiliar) {

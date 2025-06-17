@@ -59,13 +59,29 @@ class ChartService {
     return {'montos': montos, 'labels': labels};
   }
 
-  static bool isSameDay(DateTime a, DateTime b) =>
-      a.year == b.year && a.month == b.month && a.day == b.day;
+  static bool isSameDay(DateTime date1, DateTime date2) {
+    return date1.year == date2.year &&
+        date1.month == date2.month &&
+        date1.day == date2.day;
+  }
 
-  static bool isSameWeek(DateTime a, DateTime b) {
-    final mondayA = a.subtract(Duration(days: a.weekday - 1));
-    final mondayB = b.subtract(Duration(days: b.weekday - 1));
-    return isSameDay(mondayA, mondayB);
+  static bool isSameWeek(DateTime date1, DateTime date2) {
+    final startOfWeek1 = _getStartOfWeek(date1);
+    final startOfWeek2 = _getStartOfWeek(date2);
+    return isSameDay(startOfWeek1, startOfWeek2);
+  }
+
+  static DateTime _getStartOfWeek(DateTime date) {
+    DateTime normalizedDate = DateTime(date.year, date.month, date.day);
+    // weekday 1 = Monday, 7 = Sunday
+    // Subtract days to get to the Monday of the current week.
+    // Si el día es domingo (7), restar 6 para llegar al lunes anterior.
+    // Si el día es lunes (1), restar 0.
+    int daysToSubtract =
+        normalizedDate.weekday == DateTime.sunday
+            ? 6
+            : normalizedDate.weekday - DateTime.monday;
+    return normalizedDate.subtract(Duration(days: daysToSubtract));
   }
 
   static int _ordenarClaves(String a, String b, DateRange rango) {

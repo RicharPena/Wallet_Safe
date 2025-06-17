@@ -2,10 +2,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wallet_safe/models/cuenta.dart';
-import 'package:wallet_safe/models/perfil.dart';
 import 'package:wallet_safe/views/homePage.dart' hide IterableExtension;
 import 'package:wallet_safe/providers/app_providers.dart';
-import 'package:wallet_safe/services/perfil_service.dart';
 
 class ProfileViews extends ConsumerStatefulWidget {
   const ProfileViews({super.key});

@@ -7,6 +7,7 @@ import 'package:wallet_safe/models/gastos_state.dart';
 import 'package:wallet_safe/models/ingresos_state.dart';
 import 'package:wallet_safe/models/cuenta.dart'; // Tu clase Cuenta (ahora inmutable)
 import 'package:wallet_safe/models/perfil.dart'; // Clase Perfil (ahora inmutable)
+import 'package:wallet_safe/services/cuenta_service.dart';
 import 'package:wallet_safe/services/perfil_service.dart'; // Servicio de perfil
 import '../controllers/ingresos_tab_controller.dart' as IngresosCtrl;
 import '../controllers/config_tab_controller.dart';
@@ -109,6 +110,13 @@ class PerfilActivoNotifier extends StateNotifier<Perfil?> {
   void clearPerfilActivo() {
     state = null;
   }
+
+  void setPerfil(Perfil? perfil) {
+    state = perfil;
+    debugPrint(
+      'PerfilActivoNotifier: Perfil activo actualizado a: ${perfil?.nombre ?? 'null'}',
+    );
+  }
 }
 
 /// **Provider principal para el Perfil activo (instancia completa).**
@@ -182,7 +190,7 @@ final ingresosTabControllerProvider = StateNotifierProvider.autoDispose<
   // === ¡CAMBIO CLAVE AQUÍ! Aplicar la lógica de "sublist(1)" dentro del provider ===
   // =================================================================================
   List<Map<String, dynamic>> familiaresMetadata = [];
-  if (cuentaActiva != null && cuentaActiva.perfilesMetadata != null) {
+  if (cuentaActiva != null) {
     if (cuentaActiva.perfilesMetadata.length > 1) {
       // Excluir el primer elemento (Titular) y tomar el resto como Familiares
       familiaresMetadata = cuentaActiva.perfilesMetadata.sublist(1);
@@ -246,15 +254,27 @@ final gastosTabControllerProvider = StateNotifierProvider.autoDispose<
   );
 });
 
+final cuentaServiceProvider = Provider((ref) => CuentaService());
+
 final configTabControllerProvider =
     ChangeNotifierProvider.autoDispose<ConfigTabController>((ref) {
-      final cuenta = ref.watch(cuentaActivaProvider);
+      final cuentaActiva = ref.watch(cuentaActivaProvider);
+      final cuentaService = ref.read(
+        cuentaServiceProvider,
+      ); // Inyectamos el servicio
+
+      // ESTE ES EL CALLBACK UNIFICADO PARA LIMPIAR AMBOS PROVIDERS
+      void clearAndSetProviders(Cuenta? cuenta, Perfil? perfil) {
+        if (perfil != null) {
+          ref.read(cuentaActivaProvider.notifier).setCuenta(cuenta!);
+          ref.read(perfilActivoProvider.notifier).setPerfil(perfil);
+        }
+      }
+
       return ConfigTabController(
-        cuentaInicial: cuenta,
-        updateCuentaInNotifier: (updatedCuenta) {
-          // <-- ¡AÑADIDO AQUÍ!
-          ref.read(cuentaActivaProvider.notifier).setCuenta(updatedCuenta);
-        },
+        cuentaService: cuentaService, // Pasamos la instancia del servicio
+        cuentaInicial: cuentaActiva,
+        clearAndSetProviders: clearAndSetProviders, // Pasamos el callback
       );
     });
 

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:wallet_safe/controllers/gastos_tab_controller.dart';
 import 'package:wallet_safe/models/perfil.dart';
 import '../models/familia.dart';
 import '../models/presupuesto_familiar.dart';

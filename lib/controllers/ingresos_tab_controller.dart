@@ -310,19 +310,6 @@ class IngresosTabController extends StateNotifier<IngresosState> {
     }
   }
 
-  // ELIMINA EL MÉTODO dispose() de aquí.
-  // Los TextEditingController ya no estarán aquí para ser dispuestos.
-  /*
-  @override
-  void dispose() {
-    montoController.dispose();
-    descripcionController.dispose();
-    montoPresupuestoPersonalController.dispose();
-    montoPresupuestoFamiliarController.dispose();
-    super.dispose();
-  }
-  */
-
   // El método reset() ahora solo limpia los estados del StateNotifier, no los controladores.
   void reset() {
     state = IngresosState(

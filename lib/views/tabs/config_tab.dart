@@ -231,11 +231,15 @@ class _ConfigTabState extends ConsumerState<ConfigTab> {
                       configController.logout();
                       if (mounted) {
                         // Navegar a la pantalla de login y remover todas las rutas anteriores
-                        Navigator.of(context).pushAndRemoveUntil(
+                        Navigator.of(
+                          context,
+                          rootNavigator: true,
+                        ).pushAndRemoveUntil(
                           MaterialPageRoute(
                             builder: (context) => const LoginView(),
                           ),
-                          (Route<dynamic> route) => false,
+                          (Route<dynamic> route) =>
+                              false, // Esto elimina todas las rutas anteriores
                         );
                       }
                     }
@@ -293,7 +297,7 @@ class _ConfigTabState extends ConsumerState<ConfigTab> {
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty || value.length < 6) {
-                      return 'La nueva contraseña debe tener al menos 6 caracteres';
+                      return 'Al menos 6 caracteres para cambiar contraseña';
                     }
                     return null;
                   },

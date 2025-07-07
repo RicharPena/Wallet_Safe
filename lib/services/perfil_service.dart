@@ -2,12 +2,10 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:wallet_safe/models/perfil.dart';
-import 'package:wallet_safe/models/titular.dart'; // Importar Titular
-import 'package:wallet_safe/models/familia.dart'; // Importar Familia
+import 'package:wallet_safe/services/config_service.dart';
 
 class PerfilService {
-  final String baseUrl =
-      'http://192.168.1.64/proyecto_wallet_safe/controlador/broker.php';
+  final String baseUrl = ConfigService.baseUrl;
 
   // --- Métodos para Autenticación y Obtención de Perfiles ---
 

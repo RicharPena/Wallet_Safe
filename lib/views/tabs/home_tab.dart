@@ -36,29 +36,11 @@ class _HomeTabState extends ConsumerState<HomeTab> {
     // ref.listen para cargar FamiliaViewModel
     ref.listen<Perfil?>(perfilActivoProvider, (previousPerfil, newPerfil) {
       if (newPerfil is Familia) {
-        ref
-            .read(familiaViewModelProvider.notifier)
-            .cargarFamilia(newPerfil, context);
+        ref.read(familiaViewModelProvider.notifier).cargarFamilia(newPerfil);
         debugPrint(
           'HomeTab (listener): Perfil de Familia cargado en FamiliaViewModel: ${newPerfil.nombre}',
         );
       } else {
-        ref.listen<Perfil?>(perfilActivoProvider, (previousPerfil, newPerfil) {
-          if (newPerfil is Familia) {
-            // Pasa el BuildContext aquí a cargarFamilia
-            ref
-                .read(familiaViewModelProvider.notifier)
-                .cargarFamilia(newPerfil, context);
-            debugPrint(
-              'HomeTab (listener): Perfil de Familia cargado en FamiliaViewModel: ${newPerfil.nombre}',
-            );
-          } else {
-            ref.read(familiaViewModelProvider.notifier).resetFamilia();
-            debugPrint(
-              'HomeTab (listener): Perfil no es Familia, FamiliaViewModel reseteado.',
-            );
-          }
-        });
         ref.read(familiaViewModelProvider.notifier).resetFamilia();
         debugPrint(
           'HomeTab (listener): Perfil no es Familia, FamiliaViewModel reseteado.',

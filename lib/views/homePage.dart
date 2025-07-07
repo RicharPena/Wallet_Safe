@@ -44,7 +44,7 @@ class _HomePageState extends ConsumerState<HomePage> {
       if (currentPerfil is Familia) {
         ref
             .read(familiaViewModelProvider.notifier)
-            .cargarFamilia(currentPerfil, context);
+            .cargarFamilia(currentPerfil);
         _dialogShownForThisBudget = false;
       }
     });

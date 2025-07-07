@@ -7,7 +7,6 @@ import 'package:wallet_safe/models/gastos_state.dart';
 import 'package:wallet_safe/models/ingresos_state.dart';
 import 'package:wallet_safe/models/cuenta.dart'; // Tu clase Cuenta (ahora inmutable)
 import 'package:wallet_safe/models/perfil.dart'; // Clase Perfil (ahora inmutable)
-import 'package:wallet_safe/services/cuenta_service.dart';
 import 'package:wallet_safe/services/perfil_service.dart'; // Servicio de perfil
 import '../controllers/ingresos_tab_controller.dart' as IngresosCtrl;
 import '../controllers/config_tab_controller.dart';
@@ -110,13 +109,6 @@ class PerfilActivoNotifier extends StateNotifier<Perfil?> {
   void clearPerfilActivo() {
     state = null;
   }
-
-  void setPerfil(Perfil? perfil) {
-    state = perfil;
-    debugPrint(
-      'PerfilActivoNotifier: Perfil activo actualizado a: ${perfil?.nombre ?? 'null'}',
-    );
-  }
 }
 
 /// **Provider principal para el Perfil activo (instancia completa).**
@@ -190,7 +182,7 @@ final ingresosTabControllerProvider = StateNotifierProvider.autoDispose<
   // === ¡CAMBIO CLAVE AQUÍ! Aplicar la lógica de "sublist(1)" dentro del provider ===
   // =================================================================================
   List<Map<String, dynamic>> familiaresMetadata = [];
-  if (cuentaActiva != null) {
+  if (cuentaActiva != null && cuentaActiva.perfilesMetadata != null) {
     if (cuentaActiva.perfilesMetadata.length > 1) {
       // Excluir el primer elemento (Titular) y tomar el resto como Familiares
       familiaresMetadata = cuentaActiva.perfilesMetadata.sublist(1);
@@ -254,27 +246,15 @@ final gastosTabControllerProvider = StateNotifierProvider.autoDispose<
   );
 });
 
-final cuentaServiceProvider = Provider((ref) => CuentaService());
-
 final configTabControllerProvider =
     ChangeNotifierProvider.autoDispose<ConfigTabController>((ref) {
-      final cuentaActiva = ref.watch(cuentaActivaProvider);
-      final cuentaService = ref.read(
-        cuentaServiceProvider,
-      ); // Inyectamos el servicio
-
-      // ESTE ES EL CALLBACK UNIFICADO PARA LIMPIAR AMBOS PROVIDERS
-      void clearAndSetProviders(Cuenta? cuenta, Perfil? perfil) {
-        if (perfil != null) {
-          ref.read(cuentaActivaProvider.notifier).setCuenta(cuenta!);
-          ref.read(perfilActivoProvider.notifier).setPerfil(perfil);
-        }
-      }
-
+      final cuenta = ref.watch(cuentaActivaProvider);
       return ConfigTabController(
-        cuentaService: cuentaService, // Pasamos la instancia del servicio
-        cuentaInicial: cuentaActiva,
-        clearAndSetProviders: clearAndSetProviders, // Pasamos el callback
+        cuentaInicial: cuenta,
+        updateCuentaInNotifier: (updatedCuenta) {
+          // <-- ¡AÑADIDO AQUÍ!
+          ref.read(cuentaActivaProvider.notifier).setCuenta(updatedCuenta);
+        },
       );
     });
 
@@ -292,11 +272,14 @@ final familiaViewModelProvider = StateNotifierProvider.autoDispose<
   FamiliaViewModel,
   Familia?
 >((ref) {
-  final perfilService = ref.read(perfilServiceProvider);
+  final perfilService = ref.read(perfilServiceProvider); // Lee el servicio
 
-  // No necesitamos ref.watch aquí para el currentPerfil para la construcción inicial
-  // La lógica de carga se hará en el listener de home_tab
+  // **** ¡ESTA LÍNEA ES CRUCIAL! ****
+  // Observa el perfilActivoProvider. Cada vez que su estado (el Perfil) cambie,
+  // Riverpod reconstruirá este StateNotifierProvider.
+  final Perfil? currentPerfil = ref.watch(perfilActivoProvider);
 
+  // Crea la instancia de tu ViewModel
   final viewModel = FamiliaViewModel(
     perfilService: perfilService,
     updatePerfilInNotifier: (updatedPerfil) {
@@ -304,5 +287,16 @@ final familiaViewModelProvider = StateNotifierProvider.autoDispose<
     },
   );
 
-  return viewModel;
+  // **** ¡ESTA LÓGICA TAMBIÉN ES CLAVE! ****
+  // Carga la familia en el ViewModel. Esto se ejecutará cada vez que
+  // currentPerfil (el resultado de ref.watch) cambie.
+  if (currentPerfil is Familia) {
+    viewModel.cargarFamilia(currentPerfil);
+  } else {
+    // Si el perfil activo no es una Familia (ej. es un Titular, o nulo),
+    // asegura que el estado del FamiliaViewModel sea nulo.
+    viewModel.state = null;
+  }
+
+  return viewModel; // Retorna la instancia del ViewModel
 });

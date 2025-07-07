@@ -5,7 +5,6 @@ import '../models/familia.dart';
 import '../models/presupuesto_familiar.dart';
 import '../models/presupuesto_personal.dart';
 import '../services/perfil_service.dart'; // Importamos el servicio
-import '../widgets/notificacion_presupuesto.dart';
 
 // Definimos un StateNotifier para nuestro FamiliaViewModel
 class FamiliaViewModel extends StateNotifier<Familia?> {
@@ -20,63 +19,23 @@ class FamiliaViewModel extends StateNotifier<Familia?> {
        _updatePerfilInNotifier = updatePerfilInNotifier,
        super(null);
 
-  void cargarFamilia(Familia familia, BuildContext context) {
+  void cargarFamilia(Familia familia) {
     state = familia;
     debugPrint('FamiliaViewModel: Familia cargada: ${familia.nombre}');
     debugPrint(
       'FamiliaViewModel: Presupuestos familiares en la familia cargada: ${familia.cnPresupuestosFamiliares.length}',
     );
-
-    // Mover la lógica de verificación y mostrar notificación aquí
-    PresupuestoFamiliar? presupuestoPendiente;
-    for (var pf in familia.cnPresupuestosFamiliares) {
-      if (!pf.distribuido) {
-        presupuestoPendiente = pf;
-        break; // Encontrado el primero, salimos del bucle
-      }
-    }
-
-    if (presupuestoPendiente != null) {
+    if (familia.cnPresupuestosFamiliares.isEmpty) {
       debugPrint(
-        'FamiliaViewModel: Presupuesto pendiente detectado: ${presupuestoPendiente.categoria}',
-      );
-      // Llamar a mostrarNotificacionPresupuesto DENTRO del ViewModel
-      // Asegurarse de que el diálogo se muestra solo una vez si ya está visible
-      // o manejar la lógica de que solo se muestre en la primera carga.
-      // Para evitar que se muestre múltiples veces en reconstrucciones:
-      // Podrías tener una bandera interna o verificar si el contexto del diálogo ya está montado.
-      _mostrarNotificacionPresupuesto(context, presupuestoPendiente);
-    } else {
-      debugPrint(
-        'FamiliaViewModel: No hay presupuestos familiares pendientes de distribución.',
+        'FamiliaViewModel: La lista cnPresupuestosFamiliares ESTÁ VACÍA.',
       );
     }
-  }
-
-  void _mostrarNotificacionPresupuesto(
-    BuildContext context,
-    PresupuestoFamiliar presupuestoPendiente,
-  ) {
-    // Es crucial que showDialog se llame en un contexto que esté montado.
-    // Esto lo asegura la llamada desde el listener de home_tab.
-    showDialog(
-      context: context,
-      barrierDismissible:
-          false, // Opcional: El usuario debe interactuar con el diálogo
-      builder: (BuildContext dialogContext) {
-        return NewFamilyBudgetDialog(presupuestoFamiliar: presupuestoPendiente);
-      },
-    );
-    debugPrint(
-      'FamiliaViewModel: Mostrando NewFamilyBudgetDialog para ${presupuestoPendiente.categoria}.',
-    );
-  }
-
-  void resetFamilia() {
-    state = null;
-    debugPrint(
-      'FamiliaViewModel: Estado de FamiliaViewModel reseteado a null.',
-    );
+    // Puedes incluso imprimir el contenido si no es muy grande
+    for (var p in familia.cnPresupuestosFamiliares) {
+      debugPrint(
+        '  - Presupuesto Familiar: ${p.categoria}, Monto: ${p.montoAsignado}, Distribuido: ${p.distribuido}',
+      );
+    }
   }
 
   PresupuestoFamiliar? getPresupuestoFamiliarPendiente() {
@@ -88,6 +47,11 @@ class FamiliaViewModel extends StateNotifier<Familia?> {
     } catch (e) {
       return null;
     }
+  }
+
+  void resetFamilia() {
+    state = null;
+    debugPrint('FamiliaViewModel: Estado reseteado (Familia = null).');
   }
 
   List<PresupuestoPersonal> get presupuestosPersonalesDeFamiliares {

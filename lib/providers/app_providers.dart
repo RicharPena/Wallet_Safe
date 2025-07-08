@@ -7,6 +7,7 @@ import 'package:wallet_safe/models/gastos_state.dart';
 import 'package:wallet_safe/models/ingresos_state.dart';
 import 'package:wallet_safe/models/cuenta.dart'; // Tu clase Cuenta (ahora inmutable)
 import 'package:wallet_safe/models/perfil.dart'; // Clase Perfil (ahora inmutable)
+import 'package:wallet_safe/services/cuenta_service.dart';
 import 'package:wallet_safe/services/perfil_service.dart'; // Servicio de perfil
 import '../controllers/ingresos_tab_controller.dart' as IngresosCtrl;
 import '../controllers/config_tab_controller.dart';
@@ -47,6 +48,7 @@ final cuentaActivaProvider =
 /// **Provider para el PerfilService.**
 /// Un `Provider` simple para obtener una instancia de `PerfilService`.
 final perfilServiceProvider = Provider((ref) => PerfilService());
+final cuentaServiceProvider = Provider((ref) => CuentaService());
 
 // **Provider para almacenar el ID del Perfil actualmente seleccionado por el usuario.**
 // Este es un simple `StateProvider` que guarda un `int?`.
@@ -246,17 +248,51 @@ final gastosTabControllerProvider = StateNotifierProvider.autoDispose<
   );
 });
 
-final configTabControllerProvider =
-    ChangeNotifierProvider.autoDispose<ConfigTabController>((ref) {
-      final cuenta = ref.watch(cuentaActivaProvider);
-      return ConfigTabController(
-        cuentaInicial: cuenta,
-        updateCuentaInNotifier: (updatedCuenta) {
-          // <-- ¡AÑADIDO AQUÍ!
-          ref.read(cuentaActivaProvider.notifier).setCuenta(updatedCuenta);
-        },
-      );
-    });
+final configTabControllerProvider = StateNotifierProvider.autoDispose<
+  ConfigTabController,
+  ConfigState
+>((ref) {
+  final cuentaService = ref.read(
+    cuentaServiceProvider,
+  ); // Asume que tienes un cuentaServiceProvider
+  final perfilService = ref.read(
+    perfilServiceProvider,
+  ); // Asume que tienes un perfilServiceProvider
+
+  // Obtenemos la cuenta activa actual para inicializar el controlador
+  final initialAccount = ref.watch(cuentaActivaProvider);
+
+  // Callback para limpiar/actualizar providers.
+  // Esta función será pasada al ConfigTabController.
+  void clearAndSetProviders(Cuenta? updatedCuenta, Perfil? updatedPerfil) {
+    if (updatedCuenta == null) {
+      // Si la cuenta es nula, significa logout: limpiamos todo.
+      ref.read(cuentaActivaProvider.notifier).state = null;
+      ref.read(perfilActivoProvider.notifier).state = null;
+      // También podrías invalidar otros providers si es necesario, por ejemplo:
+      // ref.invalidate(familiaViewModelProvider);
+      // ref.invalidate(ingresosTabControllerProvider);
+      // ref.invalidate(gastosTabControllerProvider);
+      // ... y cualquier otro provider que deba resetearse al cerrar sesión.
+    } else {
+      // Si hay una cuenta actualizada, solo la actualizamos.
+      ref.read(cuentaActivaProvider.notifier).state = updatedCuenta;
+      // Si también necesitas actualizar el perfil activo al mismo tiempo,
+      // la lógica para obtener el perfil actualizado debería estar en tu servicio de cuenta
+      // o ser manejada explícitamente aquí si updatedPerfil no es nulo.
+      if (updatedPerfil != null) {
+        ref.read(perfilActivoProvider.notifier).state = updatedPerfil;
+      }
+    }
+  }
+
+  return ConfigTabController(
+    cuentaService: cuentaService,
+    perfilService: perfilService,
+    initialAccount: initialAccount,
+    clearAndSetProviders: clearAndSetProviders,
+  );
+});
 
 /// Provider para el RegisterController.
 /// Usa `autoDispose` para que los recursos se liberen cuando no se usen.

@@ -1,5 +1,7 @@
+import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:wallet_safe/models/perfil.dart';
+import 'package:wallet_safe/models/presupuesto_personal.dart';
 
 enum DateRange { diario, semanal, mensual }
 
@@ -12,7 +14,8 @@ class ChartService {
     final Map<String, double> agrupado = {};
 
     for (var dato in datos) {
-      final fecha = dato.fecha;
+      final DateTime fecha = dato.fecha;
+      final double monto = dato.monto;
       String clave;
 
       switch (rango) {
@@ -157,5 +160,79 @@ class ChartService {
       default:
         return "Evalúa tu situación financiera.";
     }
+  }
+
+  static List<Color> generateDistinctColors(int count) {
+    final List<Color> colors = [];
+    final List<Color> baseColors = [
+      Colors.blue,
+      Colors.green,
+      Colors.red,
+      Colors.purple,
+      Colors.orange,
+      Colors.teal,
+      Colors.brown,
+      Colors.indigo,
+      Colors.cyan,
+      Colors.pink,
+      Colors.lime,
+      Colors.amber,
+      Colors.deepOrange,
+      Colors.deepPurple,
+      Colors.lightBlue,
+      Colors.lightGreen,
+    ];
+
+    for (int i = 0; i < count; i++) {
+      // Usamos el módulo para ciclar a través de los colores base si hay más categorías que colores.
+      colors.add(baseColors[i % baseColors.length]);
+    }
+    return colors;
+  }
+
+  /// Nuevo método para obtener datos de presupuesto agrupados para Pie Charts
+  static Future<List<Map<String, dynamic>>>
+  obtenerDatosPresupuestosParaPieChart(
+    List<PresupuestoPersonal> presupuestos,
+  ) async {
+    if (presupuestos.isEmpty) {
+      return [];
+    }
+
+    final Map<String, double> agrupadosPorCategoria = {};
+    double totalMonto = 0.0;
+
+    for (var presupuesto in presupuestos) {
+      agrupadosPorCategoria.update(
+        presupuesto.categoria,
+        (value) => value + presupuesto.montoAsignado,
+        ifAbsent: () => presupuesto.montoAsignado,
+      );
+      totalMonto += presupuesto.montoAsignado;
+    }
+
+    if (totalMonto == 0) {
+      return []; // Evitar división por cero si todos los montos son cero
+    }
+
+    final List<Map<String, dynamic>> pieChartData = [];
+    final List<String> categories = agrupadosPorCategoria.keys.toList();
+    // Asegurarse de que haya suficientes colores para todas las categorías
+    final List<Color> colors = generateDistinctColors(categories.length);
+
+    for (int i = 0; i < categories.length; i++) {
+      final String category = categories[i];
+      final double monto = agrupadosPorCategoria[category]!;
+      final double percentage = (monto / totalMonto) * 100;
+
+      pieChartData.add({
+        'category': category,
+        'amount': monto,
+        'percentage': percentage,
+        'color': colors[i],
+      });
+    }
+
+    return pieChartData;
   }
 }

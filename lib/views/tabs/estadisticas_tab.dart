@@ -5,17 +5,17 @@ import 'package:wallet_safe/widgets/gastos_chart.dart';
 import 'package:wallet_safe/widgets/ingresos_chart.dart';
 import 'package:wallet_safe/services/chart_service.dart';
 import 'package:wallet_safe/widgets/recomendations_dialog.dart';
-import 'package:wallet_safe/providers/app_providers.dart'; // Importar app_providers para acceder a los providers
+import 'package:wallet_safe/providers/app_providers.dart';
+import 'package:wallet_safe/widgets/presupuestos_personales_chart.dart';
+import 'package:wallet_safe/widgets/presupuestos_familiares_chart.dart';
 
-// Cambiamos a ConsumerStatefulWidget para acceder a Riverpod
 class EstadisticasTab extends ConsumerStatefulWidget {
-  const EstadisticasTab({super.key}); // Eliminamos el parámetro 'perfil'
+  const EstadisticasTab({super.key});
 
   @override
   ConsumerState<EstadisticasTab> createState() => _EstadisticasTabState();
 }
 
-// Cambiamos a ConsumerState
 class _EstadisticasTabState extends ConsumerState<EstadisticasTab> {
   // Mantenemos _rangoSeleccionado como estado local del widget por ahora.
   // Si esta lógica crece o necesita ser compartida, podríamos moverla a un Controller/Provider.
@@ -23,10 +23,9 @@ class _EstadisticasTabState extends ConsumerState<EstadisticasTab> {
 
   @override
   Widget build(BuildContext context) {
-    // Observamos el perfil seleccionado usando ref.watch
-    // Cada vez que perfilSeleccionadoProvider notifique un cambio, este widget se reconstruirá.
     final Perfil? perfil = ref.watch(perfilActivoProvider);
 
+    //******************************************* DEBUG PRINTS *********************************************************/
     debugPrint('EstadisticasTab: Perfil Activo ID: ${perfil?.id}');
     debugPrint('EstadisticasTab: Perfil Activo Nombre: ${perfil?.nombre}');
     debugPrint(
@@ -35,6 +34,13 @@ class _EstadisticasTabState extends ConsumerState<EstadisticasTab> {
     debugPrint(
       'EstadisticasTab: # Gastos en Perfil: ${perfil?.cnGastos.length}',
     );
+    debugPrint(
+      'EstadisticasTab: # Presupuestos Personales en Perfil: ${perfil?.cnPresupuestosPersonales.length}',
+    );
+    debugPrint(
+      'EstadisticasTab: # Presupuestos Familiares en Perfil (via personales con origen): ${perfil?.cnPresupuestosPersonales.where((p) => p.idPresupuestoFamiliarOrigen != null).length}',
+    );
+    //******************************************* FIN DEBUG PRINTS *********************************************************/
 
     if (perfil == null) {
       return const Center(
@@ -112,7 +118,6 @@ class _EstadisticasTabState extends ConsumerState<EstadisticasTab> {
                 ],
               ),
               child: IngresosChart(
-                // Pasamos el perfil obtenido de Riverpod
                 ingresos: perfil.cnIngresos,
                 rango: _rangoSeleccionado,
               ),
@@ -135,9 +140,56 @@ class _EstadisticasTabState extends ConsumerState<EstadisticasTab> {
                 ],
               ),
               child: GastosChart(
-                // Pasamos el perfil obtenido de Riverpod
                 gastos: perfil.cnGastos,
                 rango: _rangoSeleccionado,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              "📊 Presupuestos Personales",
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            Container(
+              margin: const EdgeInsets.symmetric(vertical: 8),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: 6,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: PresupuestosPersonalesChart(
+                presupuestos: perfil.cnPresupuestosPersonales,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              "👨‍👩‍👧‍👦 Presupuestos Familiares (Distribuidos)",
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            Container(
+              margin: const EdgeInsets.symmetric(vertical: 8),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: 6,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: PresupuestosFamiliaresChart(
+                presupuestosPersonales: perfil.cnPresupuestosPersonales,
               ),
             ),
             const SizedBox(height: 20),
@@ -145,7 +197,6 @@ class _EstadisticasTabState extends ConsumerState<EstadisticasTab> {
               alignment: Alignment.center,
               child: ElevatedButton.icon(
                 onPressed: () {
-                  // Pasamos el perfil obtenido de Riverpod
                   FinancialInsightDialog.show(context, perfil);
                 },
                 icon: const Icon(Icons.info_outline),

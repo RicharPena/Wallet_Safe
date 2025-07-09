@@ -1,5 +1,7 @@
+import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:wallet_safe/models/perfil.dart';
+import 'package:wallet_safe/models/presupuesto_personal.dart';
 
 enum DateRange { diario, semanal, mensual }
 
@@ -12,7 +14,8 @@ class ChartService {
     final Map<String, double> agrupado = {};
 
     for (var dato in datos) {
-      final fecha = dato.fecha;
+      final DateTime fecha = dato.fecha;
+      final double monto = dato.monto;
       String clave;
 
       switch (rango) {
@@ -59,13 +62,29 @@ class ChartService {
     return {'montos': montos, 'labels': labels};
   }
 
-  static bool isSameDay(DateTime a, DateTime b) =>
-      a.year == b.year && a.month == b.month && a.day == b.day;
+  static bool isSameDay(DateTime date1, DateTime date2) {
+    return date1.year == date2.year &&
+        date1.month == date2.month &&
+        date1.day == date2.day;
+  }
 
-  static bool isSameWeek(DateTime a, DateTime b) {
-    final mondayA = a.subtract(Duration(days: a.weekday - 1));
-    final mondayB = b.subtract(Duration(days: b.weekday - 1));
-    return isSameDay(mondayA, mondayB);
+  static bool isSameWeek(DateTime date1, DateTime date2) {
+    final startOfWeek1 = _getStartOfWeek(date1);
+    final startOfWeek2 = _getStartOfWeek(date2);
+    return isSameDay(startOfWeek1, startOfWeek2);
+  }
+
+  static DateTime _getStartOfWeek(DateTime date) {
+    DateTime normalizedDate = DateTime(date.year, date.month, date.day);
+    // weekday 1 = Monday, 7 = Sunday
+    // Subtract days to get to the Monday of the current week.
+    // Si el día es domingo (7), restar 6 para llegar al lunes anterior.
+    // Si el día es lunes (1), restar 0.
+    int daysToSubtract =
+        normalizedDate.weekday == DateTime.sunday
+            ? 6
+            : normalizedDate.weekday - DateTime.monday;
+    return normalizedDate.subtract(Duration(days: daysToSubtract));
   }
 
   static int _ordenarClaves(String a, String b, DateRange rango) {
@@ -141,5 +160,79 @@ class ChartService {
       default:
         return "Evalúa tu situación financiera.";
     }
+  }
+
+  static List<Color> generateDistinctColors(int count) {
+    final List<Color> colors = [];
+    final List<Color> baseColors = [
+      Colors.blue,
+      Colors.green,
+      Colors.red,
+      Colors.purple,
+      Colors.orange,
+      Colors.teal,
+      Colors.brown,
+      Colors.indigo,
+      Colors.cyan,
+      Colors.pink,
+      Colors.lime,
+      Colors.amber,
+      Colors.deepOrange,
+      Colors.deepPurple,
+      Colors.lightBlue,
+      Colors.lightGreen,
+    ];
+
+    for (int i = 0; i < count; i++) {
+      // Usamos el módulo para ciclar a través de los colores base si hay más categorías que colores.
+      colors.add(baseColors[i % baseColors.length]);
+    }
+    return colors;
+  }
+
+  /// Nuevo método para obtener datos de presupuesto agrupados para Pie Charts
+  static Future<List<Map<String, dynamic>>>
+  obtenerDatosPresupuestosParaPieChart(
+    List<PresupuestoPersonal> presupuestos,
+  ) async {
+    if (presupuestos.isEmpty) {
+      return [];
+    }
+
+    final Map<String, double> agrupadosPorCategoria = {};
+    double totalMonto = 0.0;
+
+    for (var presupuesto in presupuestos) {
+      agrupadosPorCategoria.update(
+        presupuesto.categoria,
+        (value) => value + presupuesto.montoAsignado,
+        ifAbsent: () => presupuesto.montoAsignado,
+      );
+      totalMonto += presupuesto.montoAsignado;
+    }
+
+    if (totalMonto == 0) {
+      return []; // Evitar división por cero si todos los montos son cero
+    }
+
+    final List<Map<String, dynamic>> pieChartData = [];
+    final List<String> categories = agrupadosPorCategoria.keys.toList();
+    // Asegurarse de que haya suficientes colores para todas las categorías
+    final List<Color> colors = generateDistinctColors(categories.length);
+
+    for (int i = 0; i < categories.length; i++) {
+      final String category = categories[i];
+      final double monto = agrupadosPorCategoria[category]!;
+      final double percentage = (monto / totalMonto) * 100;
+
+      pieChartData.add({
+        'category': category,
+        'amount': monto,
+        'percentage': percentage,
+        'color': colors[i],
+      });
+    }
+
+    return pieChartData;
   }
 }

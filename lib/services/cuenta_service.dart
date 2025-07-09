@@ -2,12 +2,10 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:wallet_safe/models/cuenta.dart';
+import 'package:wallet_safe/services/config_service.dart';
 
 class CuentaService {
-  //final String baseUrl = 'http://10.0.2.2/proyecto_wallet_safe/controlador/broker.php'; // Para Emulador Android
-  final String baseUrl =
-      'http://172.16.17.144/proyecto_wallet_safe/controlador/broker.php'; // Para celular físico (cambiar IP)
-  //final String baseUrl = 'http://localhost/proyecto_wallet_safe/controlador/broker.php'; // Para cargar en página web
+  final String baseUrl = ConfigService.baseUrl;
 
   //MÉTODO PARA REGISTRAR
   Future<Map<String, dynamic>> registrar(Map<String, dynamic> datos) async {

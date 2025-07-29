@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wallet_safe/models/perfil.dart';
+import 'package:wallet_safe/models/titular.dart';
 import 'package:wallet_safe/widgets/gastos_chart.dart';
 import 'package:wallet_safe/widgets/ingresos_chart.dart';
 import 'package:wallet_safe/services/chart_service.dart';
@@ -169,29 +170,31 @@ class _EstadisticasTabState extends ConsumerState<EstadisticasTab> {
               ),
             ),
             const SizedBox(height: 20),
-            Text(
-              "👨‍👩‍👧‍👦 Presupuestos Familiares (Distribuidos)",
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 8),
-            Container(
-              margin: const EdgeInsets.symmetric(vertical: 8),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black12,
-                    blurRadius: 6,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
+            if (perfil is! Titular) ...[
+              Text(
+                "👨‍👩‍👧‍👦 Presupuestos Familiares (Distribuidos)",
+                style: Theme.of(context).textTheme.titleMedium,
               ),
-              child: PresupuestosFamiliaresChart(
-                presupuestosPersonales: perfil.cnPresupuestosPersonales,
+              const SizedBox(height: 8),
+              Container(
+                margin: const EdgeInsets.symmetric(vertical: 8),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black12,
+                      blurRadius: 6,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: PresupuestosFamiliaresChart(
+                  presupuestosPersonales: perfil.cnPresupuestosPersonales,
+                ),
               ),
-            ),
+            ],
             const SizedBox(height: 20),
             Align(
               alignment: Alignment.center,

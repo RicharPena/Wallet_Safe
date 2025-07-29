@@ -16,34 +16,36 @@ class PresupuestosPersonalesChart extends StatelessWidget {
             .where((p) => p.idPresupuestoFamiliarOrigen == null)
             .toList();
 
-    return AspectRatio(
-      aspectRatio: 1.3, // Ajusta el aspecto para que el pastel se vea bien
-      child: FutureBuilder<List<Map<String, dynamic>>>(
-        future: ChartService.obtenerDatosPresupuestosParaPieChart(
-          presupuestosPersonalesFiltrados,
-        ),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: ChartService.obtenerDatosPresupuestosParaPieChart(
+        presupuestosPersonalesFiltrados,
+      ),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Center(child: Text('Error: ${snapshot.error}'));
+        }
 
-          final List<Map<String, dynamic>>? data = snapshot.data;
+        final List<Map<String, dynamic>>? data = snapshot.data;
 
-          if (data == null || data.isEmpty) {
-            return const Center(
-              child: Text(
-                "No hay datos de presupuestos personales para mostrar",
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-              ),
-            );
-          }
+        if (data == null || data.isEmpty) {
+          return const Center(
+            child: Text(
+              "No hay datos de presupuestos personales para mostrar",
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+            ),
+          );
+        }
 
-          return Column(
-            children: [
-              Expanded(
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              flex: 1,
+              child: AspectRatio(
+                aspectRatio: 1.5,
                 child: PieChart(
                   PieChartData(
                     sections:
@@ -72,24 +74,31 @@ class PresupuestosPersonalesChart extends StatelessWidget {
                   ),
                 ),
               ),
-              // Leyenda personalizada
-              Wrap(
-                alignment: WrapAlignment.center,
-                spacing: 12, // Espacio horizontal entre ítems
-                runSpacing: 8, // Espacio vertical entre líneas de ítems
-                children:
-                    data.map((item) {
-                      return _LegendItem(
-                        color: item['color'] as Color,
-                        text:
-                            '${item['category']}: ${(item['percentage'] as double).toStringAsFixed(1)}%',
-                      );
-                    }).toList(),
+            ),
+            // Leyenda personalizada
+            Flexible(
+              flex: 1,
+              child: SingleChildScrollView(
+                child: Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing:
+                      12, // Espacio horizontal entre los ítems de la leyenda
+                  runSpacing:
+                      8, // Espacio vertical entre las líneas de la leyenda
+                  children:
+                      data.map((item) {
+                        return _LegendItem(
+                          color: item['color'] as Color,
+                          text:
+                              '${item['category']}: ${(item['percentage'] as double).toStringAsFixed(1)}%',
+                        );
+                      }).toList(),
+                ),
               ),
-            ],
-          );
-        },
-      ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
